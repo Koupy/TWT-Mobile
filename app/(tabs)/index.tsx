@@ -172,10 +172,12 @@ export default function HomeScreen() {
     return (
       <View style={styles.paginationContainer}>
         {badges.map((_, i) => {
+          const totalWidth = screenWidth * 0.75 + 20; // Width of one badge + margin
+          
           const inputRange = [
-            (i - 1) * screenWidth,
-            i * screenWidth,
-            (i + 1) * screenWidth,
+            Math.max(0, (i - 1) * totalWidth),
+            i * totalWidth,
+            Math.min((badges.length - 1) * totalWidth, (i + 1) * totalWidth),
           ];
           
           const dotWidth = scrollX.interpolate({
