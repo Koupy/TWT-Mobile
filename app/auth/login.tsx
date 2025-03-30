@@ -13,6 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../_layout';
 
@@ -20,6 +21,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const router = useRouter();
   const authContext = useContext(AuthContext);
   const { width } = useWindowDimensions();
   
@@ -47,7 +49,7 @@ export default function LoginScreen() {
       }
       
       // Authentication successful
-      console.log('Authentification réussie');
+      router.replace('/(tabs)');
     } else {
       setError('Email ou mot de passe incorrect');
     }

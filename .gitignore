@@ -38,4 +38,5 @@ yarn-error.*
 app-example
 
 # other
+tsconfig.json
 assets/images/
