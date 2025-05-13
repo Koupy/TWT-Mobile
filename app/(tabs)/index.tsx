@@ -388,14 +388,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+    paddingTop: Platform.OS === 'ios' ? 20 : 10, // Add top spacing
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 25, // Increase top padding
     paddingBottom: 20,
+    marginTop: 10, // Extra margin for spacing
   },
   greeting: {
     fontSize: 24,
