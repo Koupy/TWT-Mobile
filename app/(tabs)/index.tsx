@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -112,8 +112,15 @@ const fakeActivities: Activity[] = [
 export default function HomeScreen() {
   const [badges] = useState<Badge[]>(fakeBadges);
   const [activities] = useState<Activity[]>(fakeActivities);
+  // Initialize scrollX with 0 to highlight first dot
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
+  
+  // Set initial active dot
+  useEffect(() => {
+    // Force update of animation value to ensure first dot is highlighted
+    scrollX.setValue(0);
+  }, []);
 
   // Use a badge
   const useBadge = (badge: Badge) => {
@@ -167,41 +174,42 @@ export default function HomeScreen() {
     );
   };
 
-  // Pagination dots
+  // Track current page index
+  const [currentIndex, setCurrentIndex] = useState(0);
+  
+  // Handle scroll events to update current index
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    { 
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const offsetX = event.nativeEvent.contentOffset.x;
+        const pageIndex = Math.round(offsetX / (screenWidth * 0.75 + 20));
+        if (pageIndex !== currentIndex) {
+          setCurrentIndex(pageIndex);
+        }
+      } 
+    }
+  );
+  
+  // Simple pagination dots
   const renderPaginationDots = () => {
     return (
       <View style={styles.paginationContainer}>
-        {badges.map((_, i) => {
-          const totalWidth = screenWidth * 0.75 + 20; // Width of one badge + margin
-          
-          const inputRange = [
-            Math.max(0, (i - 1) * totalWidth),
-            i * totalWidth,
-            Math.min((badges.length - 1) * totalWidth, (i + 1) * totalWidth),
-          ];
-          
-          const dotWidth = scrollX.interpolate({
-            inputRange,
-            outputRange: [8, 16, 8],
-            extrapolate: 'clamp',
-          });
-          
-          const opacity = scrollX.interpolate({
-            inputRange,
-            outputRange: [0.3, 1, 0.3],
-            extrapolate: 'clamp',
-          });
-          
-          return (
-            <Animated.View
-              key={i}
-              style={[
-                styles.dot,
-                { width: dotWidth, opacity },
-              ]}
-            />
-          );
-        })}
+        {badges.map((_, i) => (
+          <View
+            key={i}
+            style={[
+              styles.dot,
+              { 
+                width: currentIndex === i ? 16 : 8,
+                backgroundColor: currentIndex === i 
+                  ? 'rgba(255, 255, 255, 1)' 
+                  : 'rgba(255, 255, 255, 0.3)'
+              }
+            ]}
+          />
+        ))}
       </View>
     );
   };
@@ -232,10 +240,7 @@ export default function HomeScreen() {
             decelerationRate="fast"
             pagingEnabled
             snapToAlignment="center"
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-              { useNativeDriver: false }
-            )}
+            onScroll={handleScroll}
           />
           {renderPaginationDots()}
         </View>
@@ -344,7 +349,7 @@ const styles = StyleSheet.create({
   dot: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     marginHorizontal: 4,
   },
   activitiesSection: {
