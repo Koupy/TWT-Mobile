@@ -11,6 +11,7 @@ import {
   Animated,
   Dimensions,
   Platform,
+  Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +26,8 @@ interface Badge {
   iconName: keyof typeof Ionicons.glyphMap;
   color: string;
   location?: string;
+  description?: string;
+  lastUsed?: string;
 }
 
 // Activity interface
@@ -46,6 +49,8 @@ const fakeBadges: Badge[] = [
     iconName: 'business',
     color: '#0A84FF',
     location: 'Immeuble Principal',
+    description: 'Badge d\'accès principal permettant d\'entrer dans le bâtiment par les entrées principales et secondaires.',
+    lastUsed: 'Aujourd\'hui à 09:32',
   },
   {
     id: '2',
@@ -54,6 +59,8 @@ const fakeBadges: Badge[] = [
     iconName: 'car',
     color: '#30D158',
     location: 'Parking Souterrain',
+    description: 'Badge d\'accès au parking souterrain de l\'immeuble. Permet l\'entrée et la sortie des véhicules.',
+    lastUsed: 'Aujourd\'hui à 09:15',
   },
   {
     id: '3',
@@ -62,6 +69,8 @@ const fakeBadges: Badge[] = [
     iconName: 'desktop',
     color: '#FF9F0A',
     location: 'Bureau 42',
+    description: 'Badge d\'accès au bureau 42 situé au 4ème étage. Accès restreint aux membres de l\'équipe.',
+    lastUsed: 'Hier à 18:45',
   },
   {
     id: '4',
@@ -70,6 +79,8 @@ const fakeBadges: Badge[] = [
     iconName: 'cafe',
     color: '#FF375F',
     location: 'Cafétéria Principale',
+    description: 'Badge d\'accès à la cafétéria principale située au rez-de-chaussée. Accessible à tous les employés.',
+    lastUsed: 'Hier à 13:20',
   },
 ];
 
@@ -116,17 +127,28 @@ export default function HomeScreen() {
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
   
+  // State for badge detail modal
+  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [badgeActivities, setBadgeActivities] = useState<Activity[]>([]);
+  
   // Set initial active dot
   useEffect(() => {
     // Force update of animation value to ensure first dot is highlighted
     scrollX.setValue(0);
   }, []);
 
-  // Use a badge
+  // Use a badge and show details
   const useBadge = (badge: Badge) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Simulate badge usage
-    console.log(`Utilisation du badge: ${badge.name}`);
+    
+    // Filter activities for this badge
+    const filteredActivities = fakeActivities.filter(activity => activity.badgeId === badge.id);
+    
+    // Set selected badge and its activities
+    setSelectedBadge(badge);
+    setBadgeActivities(filteredActivities);
+    setModalVisible(true);
   };
 
   // Badge render
@@ -214,6 +236,106 @@ export default function HomeScreen() {
     );
   };
 
+  // Render badge detail modal
+  const renderBadgeDetailModal = () => {
+    if (!selectedBadge) return null;
+    
+    return (
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Header with close button */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Détails du badge</Text>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Badge info */}
+            <View style={styles.badgeDetailContainer}>
+              <View style={[styles.badgeIconLarge, { backgroundColor: selectedBadge.color }]}>
+                <Ionicons name={selectedBadge.iconName} size={40} color="#FFFFFF" />
+              </View>
+              
+              <View style={styles.badgeInfoContainer}>
+                <Text style={styles.badgeDetailName}>{selectedBadge.name}</Text>
+                <Text style={styles.badgeDetailType}>{selectedBadge.type}</Text>
+                
+                <View style={styles.badgeDetailRow}>
+                  <Ionicons name="location-outline" size={16} color="rgba(255, 255, 255, 0.7)" />
+                  <Text style={styles.badgeDetailLocation}>{selectedBadge.location}</Text>
+                </View>
+                
+                <View style={styles.badgeDetailRow}>
+                  <Ionicons name="time-outline" size={16} color="rgba(255, 255, 255, 0.7)" />
+                  <Text style={styles.badgeDetailLastUsed}>Dernière utilisation: {selectedBadge.lastUsed}</Text>
+                </View>
+              </View>
+            </View>
+            
+            {/* Badge description */}
+            <View style={styles.descriptionContainer}>
+              <Text style={styles.descriptionTitle}>Description</Text>
+              <Text style={styles.descriptionText}>{selectedBadge.description}</Text>
+            </View>
+            
+            {/* Badge specific activities */}
+            <View style={styles.badgeActivitiesContainer}>
+              <Text style={styles.badgeActivitiesTitle}>Historique d'accès</Text>
+              
+              {badgeActivities.length > 0 ? (
+                <FlatList
+                  data={badgeActivities}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <View style={styles.badgeActivityItem}>
+                      <View style={styles.badgeActivityStatus}>
+                        <Ionicons 
+                          name={item.success ? "checkmark-circle" : "close-circle"} 
+                          size={20} 
+                          color={item.success ? "#30D158" : "#FF3B30"} 
+                        />
+                      </View>
+                      <View style={styles.badgeActivityInfo}>
+                        <Text style={styles.badgeActivityLocation}>{item.location}</Text>
+                        <Text style={styles.badgeActivityTime}>{item.timestamp}</Text>
+                      </View>
+                    </View>
+                  )}
+                  style={styles.badgeActivityList}
+                />
+              ) : (
+                <Text style={styles.noActivitiesText}>Aucun historique disponible</Text>
+              )}
+            </View>
+            
+            {/* Use badge button */}
+            <TouchableOpacity 
+              style={[styles.useBadgeButton, { backgroundColor: selectedBadge.color }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                // Simulate badge usage
+                alert(`Badge ${selectedBadge.name} utilisé avec succès`);
+              }}
+            >
+              <Ionicons name="scan-outline" size={20} color="#FFFFFF" style={styles.useBadgeIcon} />
+              <Text style={styles.useBadgeText}>Utiliser ce badge</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
@@ -255,6 +377,9 @@ export default function HomeScreen() {
           />
         </View>
       </ScrollView>
+      
+      {/* Badge detail modal */}
+      {renderBadgeDetailModal()}
     </SafeAreaView>
   );
 }
@@ -269,8 +394,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
   greeting: {
     fontSize: 24,
@@ -281,15 +406,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 30,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: '#FFFFFF',
     marginHorizontal: 20,
@@ -297,25 +422,26 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   badgesContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 10,
   },
   badgeCard: {
     width: Dimensions.get('window').width * 0.75,
     height: 180,
-    borderRadius: 20,
-    marginRight: 20,
+    borderRadius: 16,
+    marginHorizontal: 10,
     overflow: 'hidden',
   },
   badgeBlur: {
+    flex: 1,
     padding: 20,
-    borderRadius: 20,
-    height: '100%',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   iconContainer: {
     width: 60,
     height: 60,
     borderRadius: 30,
+    backgroundColor: '#0A84FF',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
@@ -383,5 +509,158 @@ const styles = StyleSheet.create({
   activityTime: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.4)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#121212',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+    maxHeight: '90%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeDetailContainer: {
+    flexDirection: 'row',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  badgeIconLarge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 20,
+  },
+  badgeInfoContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  badgeDetailName: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 5,
+  },
+  badgeDetailType: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 10,
+  },
+  badgeDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+  badgeDetailLocation: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginLeft: 8,
+  },
+  badgeDetailLastUsed: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginLeft: 8,
+  },
+  descriptionContainer: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  descriptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 10,
+  },
+  descriptionText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  badgeActivitiesContainer: {
+    padding: 20,
+    maxHeight: 250,
+  },
+  badgeActivitiesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 15,
+  },
+  badgeActivityList: {
+    maxHeight: 200,
+  },
+  badgeActivityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  badgeActivityStatus: {
+    marginRight: 12,
+  },
+  badgeActivityInfo: {
+    flex: 1,
+  },
+  badgeActivityLocation: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  badgeActivityTime: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+  },
+  noActivitiesText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.5)',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  useBadgeButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 50,
+    borderRadius: 25,
+    marginHorizontal: 20,
+    marginTop: 20,
+  },
+  useBadgeIcon: {
+    marginRight: 8,
+  },
+  useBadgeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
