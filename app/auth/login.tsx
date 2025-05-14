@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
   KeyboardAvoidingView,
   ScrollView,
+  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -83,6 +84,17 @@ export default function LoginScreen() {
             <Text style={[styles.subtitle, { fontSize: subtitleSize }]}>
               Votre portefeuille de badges virtuels
             </Text>
+            
+            {/* Logo */}
+            <View style={styles.logoContainer}>
+              <View style={styles.logoWrapper}>
+                <Image 
+                  source={require('../../assets/images/logo.png')} 
+                  style={styles.logoImage} 
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
           </View>
           
           <View style={styles.formContainer}>
@@ -171,7 +183,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginTop: 40,
-    marginBottom: 60,
+    marginBottom: 30,
   },
   logo: {
     fontWeight: '700',
@@ -250,5 +262,24 @@ const styles = StyleSheet.create({
   demoCredentials: {
     color: '#FFFFFF',
     fontWeight: '500',
+  },
+  logoContainer: {
+    marginTop: 40,
+    marginBottom: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoWrapper: {
+    borderRadius: 30,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    padding: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  logoImage: {
+    width: 500,
+    height: 500,
+    borderRadius: 25,
   },
 });
