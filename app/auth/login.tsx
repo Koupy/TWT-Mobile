@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../_layout';
+import { authService } from '../../services/api';
 
 // Toggle quick login button
 const ENABLE_QUICK_LOGIN = true;
@@ -39,7 +40,7 @@ export default function LoginScreen() {
   const buttonHeight = isSmallDevice ? 50 : 56;
   const fontSize = isSmallDevice ? 14 : 16;
   
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError('');
     
     if (!email || !password) {
@@ -47,24 +48,48 @@ export default function LoginScreen() {
       return;
     }
     
-    if (email === 'demo@twallet.com' && password === 'Azerty11') {
+    try {
+      // Try to connect via the API
+      await authService.login(email, password);
+      
       if (authContext) {
         authContext.setIsAuthenticated(true);
       }
       
       // Authentication successful
       router.replace('/(tabs)');
-    } else {
-      setError('Email ou mot de passe incorrect');
+    } catch (error) {
+      // Fallback for demo if API is not available
+      if (email === 'demo@twallet.com' && password === 'Azerty11') {
+        if (authContext) {
+          authContext.setIsAuthenticated(true);
+        }
+        
+        // Authentication successful
+        router.replace('/(tabs)');
+      } else {
+        setError('Incorrect email or password');
+      }
     }
   };
   
   // Quick login handler
-  const handleQuickLogin = () => {
-    if (authContext) {
-      authContext.setIsAuthenticated(true);
+  const handleQuickLogin = async () => {
+    try {
+      // Simulate a quick login for development
+      await authService.login('demo@twallet.com', 'Azerty11');
+      
+      if (authContext) {
+        authContext.setIsAuthenticated(true);
+      }
+      router.replace('/(tabs)');
+    } catch (error) {
+      // Fallback if API is not available
+      if (authContext) {
+        authContext.setIsAuthenticated(true);
+      }
+      router.replace('/(tabs)');
     }
-    router.replace('/(tabs)');
   };
   
   return (
@@ -151,7 +176,7 @@ export default function LoginScreen() {
             
             <View style={styles.demoContainer}>
               <Text style={[styles.demoText, { fontSize: fontSize - 2 }]}>
-                identifiants démo :
+                demo credentials:
               </Text>
               <Text style={[styles.demoCredentials, { fontSize: fontSize - 2 }]}>
                 Email: demo@twallet.com

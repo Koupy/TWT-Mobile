@@ -40,3 +40,6 @@ app-example
 # other
 tsconfig.json
 assets/images/
+
+# API temporaire
+/api/

@@ -18,6 +18,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 
+// Import API services
+import { badgeService, activityService, authService } from '../../services/api';
+import type { Badge as ApiBadge, Activity as ApiActivity } from '../../services/api';
+
 // Badge interface
 interface Badge {
   id: string;
@@ -30,6 +34,20 @@ interface Badge {
   lastUsed?: string;
 }
 
+// Convert API badge to UI badge
+const convertApiBadgeToUiBadge = (apiBadge: ApiBadge): Badge => {
+  return {
+    id: apiBadge.id,
+    name: apiBadge.name,
+    type: apiBadge.type || 'Bâtiment',
+    iconName: (apiBadge.iconName as keyof typeof Ionicons.glyphMap) || 'business',
+    color: apiBadge.color || '#0A84FF',
+    location: apiBadge.location,
+    description: apiBadge.description,
+    lastUsed: apiBadge.lastUsed
+  };
+};
+
 // Activity interface
 interface Activity {
   id: string;
@@ -38,7 +56,21 @@ interface Activity {
   location: string;
   timestamp: string;
   success: boolean;
+  details?: string;
 }
+
+// Convert API activity to UI activity
+const convertApiActivityToUiActivity = (apiActivity: ApiActivity): Activity => {
+  return {
+    id: apiActivity.id,
+    badgeId: apiActivity.badgeId,
+    badgeName: apiActivity.badgeName,
+    location: apiActivity.location,
+    timestamp: apiActivity.timestamp,
+    success: apiActivity.success,
+    details: apiActivity.details
+  };
+};
 
 // Fake badge data
 const fakeBadges: Badge[] = [
@@ -121,8 +153,10 @@ const fakeActivities: Activity[] = [
 ];
 
 export default function HomeScreen() {
-  const [badges] = useState<Badge[]>(fakeBadges);
-  const [activities] = useState<Activity[]>(fakeActivities);
+  const [badges, setBadges] = useState<Badge[]>(fakeBadges);
+  const [activities, setActivities] = useState<Activity[]>(fakeActivities);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [userName, setUserName] = useState<string>('Utilisateur');
   // Initialize scrollX with 0 to highlight first dot
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
@@ -132,22 +166,78 @@ export default function HomeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [badgeActivities, setBadgeActivities] = useState<Activity[]>([]);
   
-  // Set initial active dot
+  // Load data from API
   useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        // Load user information
+        const userInfo = await authService.getUserInfo();
+        if (userInfo && userInfo.first_name) {
+          setUserName(userInfo.first_name);
+        }
+
+        // Load badges
+        try {
+          const apiBadges = await badgeService.getAllBadges();
+          if (apiBadges && apiBadges.length > 0) {
+            const uiBadges = apiBadges.map(convertApiBadgeToUiBadge);
+            setBadges(uiBadges);
+          }
+        } catch (error) {
+          console.warn('Error loading badges:', error);
+          // Use fake badges in case of error
+        }
+
+        // Load activities
+        try {
+          const apiActivities = await activityService.getAllActivities();
+          if (apiActivities && apiActivities.length > 0) {
+            const uiActivities = apiActivities.map(convertApiActivityToUiActivity);
+            setActivities(uiActivities);
+          }
+        } catch (error) {
+          console.warn('Error loading activities:', error);
+          // Use fake activities in case of error
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+
     // Force update of animation value to ensure first dot is highlighted
     scrollX.setValue(0);
   }, []);
 
   // Use a badge and show details
-  const useBadge = (badge: Badge) => {
+  const useBadge = async (badge: Badge) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
-    // Filter activities for this badge
-    const filteredActivities = fakeActivities.filter(activity => activity.badgeId === badge.id);
+    try {
+      // Get activities specific to this badge from the API
+      const badgeActivitiesFromApi = await activityService.getActivitiesByBadge(badge.id);
+      const filteredActivities = badgeActivitiesFromApi.map(convertApiActivityToUiActivity);
+      
+      // If no activity is found, use local filtering
+      if (filteredActivities.length === 0) {
+        const localFilteredActivities = activities.filter(activity => activity.badgeId === badge.id);
+        setBadgeActivities(localFilteredActivities);
+      } else {
+        setBadgeActivities(filteredActivities);
+      }
+    } catch (error) {
+      console.warn('Error retrieving badge activities:', error);
+      // Fallback: filter activities locally
+      const localFilteredActivities = activities.filter(activity => activity.badgeId === badge.id);
+      setBadgeActivities(localFilteredActivities);
+    }
     
-    // Set selected badge and its activities
+    // Set selected badge and show modal
     setSelectedBadge(badge);
-    setBadgeActivities(filteredActivities);
     setModalVisible(true);
   };
 
@@ -321,10 +411,32 @@ export default function HomeScreen() {
             {/* Use badge button */}
             <TouchableOpacity 
               style={[styles.useBadgeButton, { backgroundColor: selectedBadge.color }]}
-              onPress={() => {
+              onPress={async () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                // Simulate badge usage
-                alert(`Badge ${selectedBadge.name} utilisé avec succès`);
+                
+                try {
+                  // Create a new activity for badge usage
+                  await activityService.createActivity({
+                    badgeId: selectedBadge.id,
+                    location: selectedBadge.location || 'Emplacement inconnu',
+                    success: true,
+                    details: 'Badge utilisé via l\'application mobile'
+                  });
+                  
+                  // Refresh activities
+                  const newActivities = await activityService.getAllActivities();
+                  setActivities(newActivities.map(convertApiActivityToUiActivity));
+                  
+                  // Update activities for the selected badge
+                  const badgeActivitiesFromApi = await activityService.getActivitiesByBadge(selectedBadge.id);
+                  setBadgeActivities(badgeActivitiesFromApi.map(convertApiActivityToUiActivity));
+                  
+                  alert(`Badge ${selectedBadge.name} utilisé avec succès`);
+                } catch (error) {
+                  console.warn('Error using badge:', error);
+                  // Simulate badge usage if API fails
+                  alert(`Badge ${selectedBadge.name} utilisé avec succès (simulation)`);
+                }
               }}
             >
               <Ionicons name="scan-outline" size={20} color="#FFFFFF" style={styles.useBadgeIcon} />
@@ -341,7 +453,7 @@ export default function HomeScreen() {
       <StatusBar style="light" />
       
       <View style={styles.header}>
-        <Text style={styles.greeting}>Bonjour, Utilisateur</Text>
+        <Text style={styles.greeting}>Bonjour, {userName}</Text>
         <TouchableOpacity style={styles.notificationButton}>
           <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>

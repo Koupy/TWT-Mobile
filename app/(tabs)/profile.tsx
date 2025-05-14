@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,19 +14,55 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { AuthContext } from '../_layout';
+import { authService } from '../../services/api';
+import { User } from '../../types';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const authContext = React.useContext(AuthContext);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const handleLogout = () => {
-    // Reset authentication state
-    if (authContext) {
-      authContext.setIsAuthenticated(false);
+  // Load user information
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      setIsLoading(true);
+      try {
+        const userInfo = await authService.getUserInfo();
+        if (userInfo) {
+          setUser(userInfo);
+        }
+      } catch (error) {
+        console.error('Error loading user information:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUserInfo();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      // Logout via authentication service
+      await authService.logout();
+      
+      // Reset authentication state
+      if (authContext) {
+        authContext.setIsAuthenticated(false);
+      }
+      
+      // Redirect to login page
+      router.replace('/auth/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      
+      // Fallback in case of error
+      if (authContext) {
+        authContext.setIsAuthenticated(false);
+      }
+      router.replace('/auth/login');
     }
-    
-    // Redirect to login page
-    router.replace('/auth/login');
   };
 
   return (
@@ -44,11 +80,19 @@ export default function ProfileScreen() {
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarInitials}>DU</Text>
+              <Text style={styles.avatarInitials}>
+                {user ? 
+                  `${user.first_name?.charAt(0) || ''}${user.last_name?.charAt(0) || ''}` || 'DU' 
+                  : 'DU'}
+              </Text>
             </View>
           </View>
-          <Text style={styles.userName}>Demo User</Text>
-          <Text style={styles.userEmail}>demo@twallet.com</Text>
+          <Text style={styles.userName}>
+            {user ? 
+              `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Demo User' 
+              : 'Demo User'}
+          </Text>
+          <Text style={styles.userEmail}>{user?.email || 'demo@twallet.com'}</Text>
           <Text style={styles.userRole}>Utilisateur Standard</Text>
         </View>
         
@@ -62,7 +106,11 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.cardContent}>
                 <Text style={styles.cardLabel}>Nom complet</Text>
-                <Text style={styles.cardValue}>Demo User</Text>
+                <Text style={styles.cardValue}>
+                  {user ? 
+                    `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Demo User' 
+                    : 'Demo User'}
+                </Text>
               </View>
             </View>
             
@@ -74,7 +122,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.cardContent}>
                 <Text style={styles.cardLabel}>Email</Text>
-                <Text style={styles.cardValue}>demo@twallet.com</Text>
+                <Text style={styles.cardValue}>{user?.email || 'demo@twallet.com'}</Text>
               </View>
             </View>
             
@@ -86,7 +134,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.cardContent}>
                 <Text style={styles.cardLabel}>Téléphone</Text>
-                <Text style={styles.cardValue}>+33 6 12 34 56 78</Text>
+                <Text style={styles.cardValue}>{user?.phone || '+33 6 12 34 56 78'}</Text>
               </View>
             </View>
             
@@ -144,6 +192,21 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.cardContent}>
                 <Text style={styles.cardValue}>Langue</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.4)" />
+            </TouchableOpacity>
+            
+            <View style={styles.separator} />
+            
+            <TouchableOpacity 
+              style={styles.cardItem}
+              onPress={() => router.push('/debug')}
+            >
+              <View style={styles.cardIconContainer}>
+                <Ionicons name="code-outline" size={20} color="#0A84FF" />
+              </View>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardValue}>Débogage API</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="rgba(255, 255, 255, 0.4)" />
             </TouchableOpacity>

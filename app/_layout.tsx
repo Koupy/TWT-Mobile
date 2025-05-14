@@ -7,12 +7,14 @@ import { View } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { authService } from '../services/api';
+import { AuthContextType, User } from '../types';
 
 // Prevent display before loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 // Authentication 
-export const AuthContext = React.createContext({
+export const AuthContext = React.createContext<AuthContextType>({
   isAuthenticated: false,
   setIsAuthenticated: (value: boolean) => {},
 });
@@ -22,10 +24,11 @@ function useProtectedRoute(isAuthenticated: boolean) {
   const router = useRouter();
 
   useEffect(() => {
-    // Attendre que l'application soit prête avant de naviguer
+    // Wait for the application to be ready before navigating
     if (segments.length === 0) return;
     
-    const inAuthGroup = segments[0] === 'auth';
+    // Check if the first segment is 'auth' using a TypeScript-safe approach
+    const inAuthGroup = segments[0] ? segments[0].toString() === 'auth' : false;
     
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to login if not authenticated and not in auth group
@@ -40,20 +43,25 @@ function useProtectedRoute(isAuthenticated: boolean) {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<User | undefined>(undefined);
   const [appIsReady, setAppIsReady] = useState(false);
 
-  // Préparer l'application et attendre que tout soit chargé
+  // Prepare the application and wait for everything to load
   useEffect(() => {
     async function prepare() {
       try {
-        // Attendre que les ressources soient chargées
+        // Check if the user is already authenticated
+        const isUserAuthenticated = await authService.isAuthenticated();
+        setIsAuthenticated(isUserAuthenticated);
+        
+        // Wait for resources to load
         await new Promise(resolve => setTimeout(resolve, 500));
       } catch (e) {
         console.warn(e);
       } finally {
-        // Indiquer que l'application est prête
+        // Indicate that the application is ready
         setAppIsReady(true);
-        // Masquer l'écran de chargement
+        // Hide the loading screen
         await SplashScreen.hideAsync();
       }
     }
@@ -61,7 +69,7 @@ export default function RootLayout() {
     prepare();
   }, []);
 
-  // Utiliser directement la protection des routes
+  // Use route protection directly
   useProtectedRoute(isAuthenticated);
 
   if (!appIsReady) {
@@ -69,7 +77,7 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated }}>
+    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, user, setUser }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Slot />
         <StatusBar style="auto" />
