@@ -17,6 +17,9 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../_layout';
 
+// Toggle quick login button
+const ENABLE_QUICK_LOGIN = true;
+
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,6 +56,14 @@ export default function LoginScreen() {
     } else {
       setError('Email ou mot de passe incorrect');
     }
+  };
+  
+  // Quick login handler
+  const handleQuickLogin = () => {
+    if (authContext) {
+      authContext.setIsAuthenticated(true);
+    }
+    router.replace('/(tabs)');
   };
   
   return (
@@ -116,6 +127,15 @@ export default function LoginScreen() {
             >
               <Text style={[styles.loginButtonText, { fontSize }]}>Se connecter</Text>
             </TouchableOpacity>
+            
+            {ENABLE_QUICK_LOGIN && (
+              <TouchableOpacity 
+                style={[styles.quickLoginButton, { height: buttonHeight - 10, marginTop: 10 }]} 
+                onPress={handleQuickLogin}
+              >
+                <Text style={[styles.quickLoginText, { fontSize: fontSize - 2 }]}>Connexion rapide (Dev)</Text>
+              </TouchableOpacity>
+            )}
             
             <View style={styles.demoContainer}>
               <Text style={[styles.demoText, { fontSize: fontSize - 2 }]}>
@@ -202,6 +222,20 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  quickLoginButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderStyle: 'dashed',
+  },
+  quickLoginText: {
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.7)',
   },
   demoContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',

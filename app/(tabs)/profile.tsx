@@ -108,7 +108,10 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Paramètres</Text>
           
           <View style={styles.card}>
-            <TouchableOpacity style={styles.cardItem}>
+            <TouchableOpacity 
+              style={styles.cardItem}
+              onPress={() => router.push('/security')}
+            >
               <View style={styles.cardIconContainer}>
                 <Ionicons name="lock-closed-outline" size={20} color="#0A84FF" />
               </View>
