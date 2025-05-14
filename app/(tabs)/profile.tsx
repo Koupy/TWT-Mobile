@@ -123,7 +123,10 @@ export default function ProfileScreen() {
             
             <View style={styles.separator} />
             
-            <TouchableOpacity style={styles.cardItem}>
+            <TouchableOpacity 
+              style={styles.cardItem}
+              onPress={() => router.push('/notifications')}
+            >
               <View style={styles.cardIconContainer}>
                 <Ionicons name="notifications-outline" size={20} color="#0A84FF" />
               </View>
