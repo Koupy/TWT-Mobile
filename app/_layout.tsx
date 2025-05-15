@@ -25,7 +25,7 @@ function useProtectedRoute(isAuthenticated: boolean) {
 
   useEffect(() => {
     // Wait for the application to be ready before navigating
-    if (segments.length === 0) return;
+    if (!segments || segments.length <= 0) return;
     
     // Check if the first segment is 'auth' using a TypeScript-safe approach
     const inAuthGroup = segments[0] ? segments[0].toString() === 'auth' : false;
@@ -34,8 +34,8 @@ function useProtectedRoute(isAuthenticated: boolean) {
       // Redirect to login if not authenticated and not in auth group
       router.replace('/auth/login');
     } else if (isAuthenticated && inAuthGroup) {
-      // Redirect to main screen if authenticated and in auth group
-      router.replace('/(tabs)');
+      // Redirect to connection tab if authenticated and in auth group
+      router.replace('/(tabs)/connection');
     }
   }, [isAuthenticated, segments, router]);
 }

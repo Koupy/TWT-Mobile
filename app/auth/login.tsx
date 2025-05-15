@@ -62,8 +62,8 @@ export default function LoginScreen() {
         authContext.setIsAuthenticated(true);
       }
       
-      // Authentication successful
-      router.replace('/(tabs)');
+      // Authentication successful - redirect to connection tab
+      router.replace('/(tabs)/connection');
     } catch (error) {
       // Fallback for demo if API is not available
       if (email === 'demo@twallet.com' && password === 'Azerty11') {
@@ -71,8 +71,8 @@ export default function LoginScreen() {
           authContext.setIsAuthenticated(true);
         }
         
-        // Authentication successful
-        router.replace('/(tabs)');
+        // Authentication successful - redirect to connection tab
+        router.replace('/(tabs)/connection');
       } else {
         setError('Incorrect email or password');
       }
