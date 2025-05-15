@@ -30,8 +30,11 @@ export default function LoginScreen() {
   const authContext = useContext(AuthContext);
   const { width } = useWindowDimensions();
   
+  const { height } = useWindowDimensions();
+  
   const isSmallDevice = width < 375;
   const isMediumDevice = width >= 375 && width < 414;
+  const isSmallHeight = height < 700;
   
   const padding = isSmallDevice ? 16 : (isMediumDevice ? 20 : 24);
   const titleSize = isSmallDevice ? 28 : (isMediumDevice ? 32 : 36);
@@ -39,6 +42,9 @@ export default function LoginScreen() {
   const inputHeight = isSmallDevice ? 50 : 56;
   const buttonHeight = isSmallDevice ? 50 : 56;
   const fontSize = isSmallDevice ? 14 : 16;
+  
+  // Calculate logo size based on screen dimensions
+  const logoSize = Math.min(width * 0.6, height * 0.25);
   
   const handleLogin = async () => {
     setError('');
@@ -100,10 +106,7 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardAvoidingView}
       >
-        <ScrollView 
-          contentContainerStyle={[styles.scrollContent, { padding }]}
-          keyboardShouldPersistTaps="handled"
-        >
+        <View style={[styles.content, { padding, paddingBottom: padding + (Platform.OS === 'ios' ? 30 : 20) }]}>
           <View style={styles.header}>
             <Text style={[styles.logo, { fontSize: titleSize }]}>T-Wallet</Text>
             <Text style={[styles.subtitle, { fontSize: subtitleSize }]}>
@@ -111,11 +114,11 @@ export default function LoginScreen() {
             </Text>
             
             {/* Logo */}
-            <View style={styles.logoContainer}>
-              <View style={styles.logoWrapper}>
+            <View style={[styles.logoContainer, isSmallHeight && { marginTop: 20, marginBottom: 20 }]}>
+              <View style={[styles.logoWrapper, { padding: isSmallHeight ? 8 : 15 }]}>
                 <Image 
                   source={require('../../assets/images/logo.png')} 
-                  style={styles.logoImage} 
+                  style={[styles.logoImage, { width: logoSize, height: logoSize }]} 
                   resizeMode="contain"
                 />
               </View>
@@ -176,17 +179,17 @@ export default function LoginScreen() {
             
             <View style={styles.demoContainer}>
               <Text style={[styles.demoText, { fontSize: fontSize - 2 }]}>
-                demo credentials:
+                Informations de démo :
               </Text>
               <Text style={[styles.demoCredentials, { fontSize: fontSize - 2 }]}>
-                Email: demo@twallet.com
+                Email : demo@twallet.com
               </Text>
               <Text style={[styles.demoCredentials, { fontSize: fontSize - 2 }]}>
-                Mot de passe: Azerty11
+                Mot de passe : Azerty11
               </Text>
             </View>
           </View>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -201,14 +204,14 @@ const styles = StyleSheet.create({
   keyboardAvoidingView: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
     justifyContent: 'space-between',
   },
   header: {
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 30,
+    marginTop: Platform.OS === 'ios' ? 20 : 10,
+    marginBottom: 15,
   },
   logo: {
     fontWeight: '700',
@@ -279,6 +282,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
+    marginBottom: Platform.OS === 'ios' ? 10 : 15,
   },
   demoText: {
     color: 'rgba(255, 255, 255, 0.6)',
@@ -289,8 +293,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   logoContainer: {
-    marginTop: 40,
-    marginBottom: 30,
+    marginTop: 20,
+    marginBottom: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -303,8 +307,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   logoImage: {
-    width: 500,
-    height: 500,
     borderRadius: 25,
   },
 });
