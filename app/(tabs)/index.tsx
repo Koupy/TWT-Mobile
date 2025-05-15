@@ -159,7 +159,6 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [userName, setUserName] = useState<string>('Utilisateur');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // desc = newest first, asc = oldest first
-  const [showSortMenu, setShowSortMenu] = useState<boolean>(false);
   // Initialize scrollX with 0 to highlight first dot
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
@@ -217,8 +216,6 @@ export default function HomeScreen() {
   const toggleSortOrder = () => {
     const newSortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
     setSortOrder(newSortOrder);
-    setActivities(sortActivities([...activities]));
-    setShowSortMenu(false);
   };
   
   // Effect to re-sort activities when sort order changes
@@ -549,7 +546,7 @@ export default function HomeScreen() {
               {/* Sort button */}
               <TouchableOpacity 
                 style={styles.actionButton}
-                onPress={() => setShowSortMenu(!showSortMenu)}
+                onPress={toggleSortOrder}
               >
                 <Ionicons 
                   name={sortOrder === 'desc' ? 'arrow-down' : 'arrow-up'} 
@@ -574,32 +571,10 @@ export default function HomeScreen() {
             </View>
           </View>
           
-          {/* Sort menu */}
-          {showSortMenu && (
-            <View style={styles.sortMenu}>
-              <TouchableOpacity 
-                style={[styles.sortOption, sortOrder === 'desc' ? styles.selectedSortOption : undefined]}
-                onPress={() => {
-                  setSortOrder('desc');
-                  setShowSortMenu(false);
-                }}
-              >
-                <Ionicons name="arrow-down" size={16} color={sortOrder === 'desc' ? '#0A84FF' : '#FFFFFF'} />
-                <Text style={[styles.sortOptionText, sortOrder === 'desc' ? styles.selectedSortOptionText : undefined]}>Plus récent d'abord</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.sortOption, sortOrder === 'asc' ? styles.selectedSortOption : undefined]}
-                onPress={() => {
-                  setSortOrder('asc');
-                  setShowSortMenu(false);
-                }}
-              >
-                <Ionicons name="arrow-up" size={16} color={sortOrder === 'asc' ? '#0A84FF' : '#FFFFFF'} />
-                <Text style={[styles.sortOptionText, sortOrder === 'asc' ? styles.selectedSortOptionText : undefined]}>Plus ancien d'abord</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          {/* Indicator text showing current sort order */}
+          <Text style={styles.sortIndicator}>
+            {sortOrder === 'desc' ? 'Plus récent d\'abord' : 'Plus ancien d\'abord'}
+          </Text>
           
           {isLoading ? (
             <View style={styles.loadingContainer}>
@@ -819,6 +794,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255, 255, 255, 0.6)',
     fontStyle: 'italic',
+  },
+  sortIndicator: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    textAlign: 'center',
+    marginBottom: 10,
+    marginTop: -5,
   },
   modalOverlay: {
     flex: 1,
