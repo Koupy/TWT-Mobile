@@ -20,6 +20,7 @@ import * as Haptics from 'expo-haptics';
 
 // Import API services
 import { badgeService, activityService, authService } from '../../services/api';
+import formatDateToFrenchFormat from '../../utils/dateFormatter';
 import type { Badge as ApiBadge, Activity as ApiActivity } from '../../services/api';
 
 // Badge interface
@@ -66,7 +67,7 @@ const convertApiActivityToUiActivity = (apiActivity: ApiActivity): Activity => {
     badgeId: apiActivity.badgeId,
     badgeName: apiActivity.badgeName,
     location: apiActivity.location,
-    timestamp: apiActivity.timestamp,
+    timestamp: formatDateToFrenchFormat(apiActivity.timestamp),
     success: apiActivity.success,
     details: apiActivity.details
   };
@@ -123,7 +124,7 @@ const fakeActivities: Activity[] = [
     badgeId: '1',
     badgeName: 'Badge Principal',
     location: 'Entrée Principale',
-    timestamp: "Aujourd'hui, 09:32",
+    timestamp: formatDateToFrenchFormat(new Date()),
     success: true,
   },
   {
@@ -131,7 +132,7 @@ const fakeActivities: Activity[] = [
     badgeId: '2',
     badgeName: 'Badge Parking',
     location: 'Barrière Entrée',
-    timestamp: "Aujourd'hui, 09:15",
+    timestamp: formatDateToFrenchFormat(new Date(Date.now() - 15 * 60000)),
     success: true,
   },
   {
@@ -139,7 +140,7 @@ const fakeActivities: Activity[] = [
     badgeId: '3',
     badgeName: 'Badge Bureau',
     location: 'Bureau 42',
-    timestamp: 'Hier, 18:45',
+    timestamp: formatDateToFrenchFormat(new Date(Date.now() - 24 * 60 * 60000)),
     success: true,
   },
   {
@@ -147,7 +148,7 @@ const fakeActivities: Activity[] = [
     badgeId: '1',
     badgeName: 'Badge Principal',
     location: 'Entrée Secondaire',
-    timestamp: 'Hier, 13:20',
+    timestamp: formatDateToFrenchFormat(new Date(Date.now() - 25 * 60 * 60000)),
     success: false,
   },
 ];
@@ -157,6 +158,8 @@ export default function HomeScreen() {
   const [activities, setActivities] = useState<Activity[]>(fakeActivities);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [userName, setUserName] = useState<string>('Utilisateur');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // desc = newest first, asc = oldest first
+  const [showSortMenu, setShowSortMenu] = useState<boolean>(false);
   // Initialize scrollX with 0 to highlight first dot
   const scrollX = useRef(new Animated.Value(0)).current;
   const { width: screenWidth } = Dimensions.get('window');
@@ -165,6 +168,65 @@ export default function HomeScreen() {
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [badgeActivities, setBadgeActivities] = useState<Activity[]>([]);
+  
+  // Sort activities based on current sort order
+  const sortActivities = (activitiesToSort: Activity[]) => {
+    return [...activitiesToSort].sort((a, b) => {
+      // Parse date in format DD-MM-YYYY HH:MM:SS
+      const parseDate = (dateString: string) => {
+        try {
+          const [datePart, timePart] = dateString.split(' ');
+          const [day, month, year] = datePart.split('-').map(Number);
+          const [hours, minutes, seconds] = timePart.split(':').map(Number);
+          
+          // Month is 0-indexed in JavaScript Date
+          return new Date(year, month - 1, day, hours, minutes, seconds);
+        } catch (error) {
+          console.warn('Error parsing date:', dateString, error);
+          return new Date(0); // Return epoch date as fallback
+        }
+      };
+      
+      const dateA = parseDate(a.timestamp);
+      const dateB = parseDate(b.timestamp);
+      
+      return sortOrder === 'desc' ? dateB.getTime() - dateA.getTime() : dateA.getTime() - dateB.getTime();
+    });
+  };
+  
+  // Refresh activities
+  const refreshActivities = async () => {
+    setIsLoading(true);
+    try {
+      // Load activities
+      const apiActivities = await activityService.getAllActivities();
+      if (apiActivities && apiActivities.length > 0) {
+        const uiActivities = apiActivities.map(convertApiActivityToUiActivity);
+        setActivities(sortActivities(uiActivities));
+      }
+    } catch (error) {
+      console.warn('Error refreshing activities:', error);
+      // Sort existing activities if refresh fails
+      setActivities(sortActivities([...activities]));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Toggle sort order
+  const toggleSortOrder = () => {
+    const newSortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+    setSortOrder(newSortOrder);
+    setActivities(sortActivities([...activities]));
+    setShowSortMenu(false);
+  };
+  
+  // Effect to re-sort activities when sort order changes
+  useEffect(() => {
+    if (activities.length > 0) {
+      setActivities(sortActivities([...activities]));
+    }
+  }, [sortOrder]);
   
   // Load data from API
   useEffect(() => {
@@ -194,11 +256,12 @@ export default function HomeScreen() {
           const apiActivities = await activityService.getAllActivities();
           if (apiActivities && apiActivities.length > 0) {
             const uiActivities = apiActivities.map(convertApiActivityToUiActivity);
-            setActivities(uiActivities);
+            setActivities(sortActivities(uiActivities));
           }
         } catch (error) {
           console.warn('Error loading activities:', error);
           // Use fake activities in case of error
+          setActivities(sortActivities(fakeActivities));
         }
       } catch (error) {
         console.error('Error loading data:', error);
@@ -480,13 +543,81 @@ export default function HomeScreen() {
         </View>
         
         <View style={styles.activitiesSection}>
-          <Text style={styles.sectionTitle}>Activité récente</Text>
-          <FlatList
-            data={activities}
-            keyExtractor={(item) => item.id}
-            renderItem={renderActivity}
-            scrollEnabled={false}
-          />
+          <View style={styles.activitiesHeader}>
+            <Text style={styles.sectionTitle}>Activité récente</Text>
+            <View style={styles.activitiesActions}>
+              {/* Sort button */}
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => setShowSortMenu(!showSortMenu)}
+              >
+                <Ionicons 
+                  name={sortOrder === 'desc' ? 'arrow-down' : 'arrow-up'} 
+                  size={18} 
+                  color="#FFFFFF" 
+                />
+              </TouchableOpacity>
+              
+              {/* Refresh button */}
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={refreshActivities}
+                disabled={isLoading}
+              >
+                <Ionicons 
+                  name="refresh" 
+                  size={18} 
+                  color="#FFFFFF" 
+                  style={isLoading ? { opacity: 0.5 } : undefined}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {/* Sort menu */}
+          {showSortMenu && (
+            <View style={styles.sortMenu}>
+              <TouchableOpacity 
+                style={[styles.sortOption, sortOrder === 'desc' ? styles.selectedSortOption : undefined]}
+                onPress={() => {
+                  setSortOrder('desc');
+                  setShowSortMenu(false);
+                }}
+              >
+                <Ionicons name="arrow-down" size={16} color={sortOrder === 'desc' ? '#0A84FF' : '#FFFFFF'} />
+                <Text style={[styles.sortOptionText, sortOrder === 'desc' ? styles.selectedSortOptionText : undefined]}>Plus récent d'abord</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.sortOption, sortOrder === 'asc' ? styles.selectedSortOption : undefined]}
+                onPress={() => {
+                  setSortOrder('asc');
+                  setShowSortMenu(false);
+                }}
+              >
+                <Ionicons name="arrow-up" size={16} color={sortOrder === 'asc' ? '#0A84FF' : '#FFFFFF'} />
+                <Text style={[styles.sortOptionText, sortOrder === 'asc' ? styles.selectedSortOptionText : undefined]}>Plus ancien d'abord</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Chargement des activités...</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={activities}
+              keyExtractor={(item) => item.id}
+              renderItem={renderActivity}
+              scrollEnabled={false}
+              ListEmptyComponent={(
+                <View style={styles.emptyListContainer}>
+                  <Text style={styles.emptyListText}>Aucune activité récente</Text>
+                </View>
+              )}
+            />
+          )}
         </View>
       </ScrollView>
       
@@ -623,6 +754,71 @@ const styles = StyleSheet.create({
   activityTime: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.4)',
+  },
+  activitiesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 15,
+  },
+  activitiesActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  sortMenu: {
+    backgroundColor: '#1C1C1E',
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginBottom: 15,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  sortOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+  },
+  selectedSortOption: {
+    backgroundColor: 'rgba(10, 132, 255, 0.1)',
+  },
+  sortOptionText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    marginLeft: 10,
+  },
+  selectedSortOptionText: {
+    color: '#0A84FF',
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  emptyListContainer: {
+    padding: 30,
+    alignItems: 'center',
+  },
+  emptyListText: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontStyle: 'italic',
   },
   modalOverlay: {
     flex: 1,
