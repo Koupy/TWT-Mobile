@@ -1,7 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
   // API base URL
-  BASE_URL: 'http://localhost:8080',
+  BASE_URL: 'http://10.0.2.2:8082/api',
   
   // Request timeout in milliseconds
   TIMEOUT: 10000,
@@ -11,6 +11,9 @@ export const API_CONFIG = {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   } as Record<string, string>,
+
+  // Feature flags for API endpoints
+  ACTIVITIES_ENABLED: true, // Set to true when activities API is deployed and ready
   
   // API Endpoints
   ENDPOINTS: {
@@ -27,9 +30,9 @@ export const API_CONFIG = {
     ENTITIES: '/entities',
     ENTITY_BY_ID: (id: string) => `/entities/${id}`,
     
-    // Badges (items)
-    BADGES: '/items',
-    BADGE_BY_ID: (id: string) => `/items/${id}`,
+    // Badges
+    BADGES: '/badges',
+    BADGE_BY_ID: (id: string) => `/badges/${id}`,
     
     // Activities (to be implemented in the API)
     ACTIVITIES: '/activities',

@@ -42,4 +42,4 @@ tsconfig.json
 assets/images/
 
 # API temporaire
-/api/
+#/api/
