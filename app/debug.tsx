@@ -120,9 +120,10 @@ export default function DebugScreen() {
           const badgesForActivity = await badgeService.getAllBadges();
           if (badgesForActivity.length > 0) {
             result = await activityService.createActivity({
-              badgeId: badgesForActivity[0].id,
+              badge_id: badgesForActivity[0].id,
               location: 'Test Location',
               success: true,
+              timestamp: new Date().toISOString(),
               details: 'Test activity created from debug screen'
             });
           } else {
