@@ -64,7 +64,7 @@ const generateRadarCircles = (count: number) => {
 const generateRadarSweeps = (count: number) => {
   const sweeps = [];
   
-  // Create a smoother color gradient
+  // Use a single consistent color for all sweeps
   const baseColor = LUXURY_COLORS.sonar;
   const baseOpacity = 0.95;
   const opacityStep = 0.7 / count;
@@ -73,16 +73,15 @@ const generateRadarSweeps = (count: number) => {
   for (let i = 0; i < count; i++) {
     // Calculate opacity for this ray
     const opacity = baseOpacity - (i * opacityStep);
-    // Calculate color with a smoother transition
-    const colorOpacity = Math.max(0.15, 0.9 - (i * (0.75 / count)));
-    const color = i < 3 ? baseColor : `rgba(77, 238, 234, ${colorOpacity})`;
+    
+    const color = baseColor;
     
     sweeps.push({
       id: `radar-sweep-${i}`,
       delay: i * delayStep,
-      width: CONTAINER_SIZE * 0.45, // Longueur du rayon
-      opacity: opacity,
-      color: color,
+      width: CONTAINER_SIZE * 0.45,
+      opacity,
+      color,
     });
   }
   
@@ -254,17 +253,24 @@ export default function ConnectionScreen() {
       
       connectionTimerRef.current = setInterval(() => {
         setConnectionProgress(prev => {
-          const newProgress = prev + 0.01;
-          if (newProgress >= 1) {
+          const newProgress = prev + 0.05;
+          if (newProgress >= 0.95) {
             if (connectionTimerRef.current) {
               clearInterval(connectionTimerRef.current);
               connectionTimerRef.current = null;
             }
+            console.log('Connection progress complete, setting to 1');
+            
+            setTimeout(() => {
+              setConnectionProgress(1);
+              console.log('Progress forced to 1');
+            }, 100);
+            
             return 1;
           }
           return newProgress;
         });
-      }, 50);
+      }, 30);
     } else {
       // Cancel the current connection
       if (connectionTimerRef.current) {
@@ -284,48 +290,76 @@ export default function ConnectionScreen() {
   
   // Function to simulate a successful connection
   const simulateSuccessfulConnection = () => {
-    if (isNearReader && connectionProgress >= 1) {
-      // Haptic feedback to indicate success
+    console.log('Simulate success clicked, progress:', connectionProgress);
+    if (isNearReader) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
-      // Update the state
       setConnectionResult(true);
+
+      const successSweeps: RadarSweep[] = [];
+      for (let i = 0; i < 15; i++) {
+        successSweeps.push({
+          id: `radar-sweep-${i}`,
+          delay: i * (200 / 15),
+          width: CONTAINER_SIZE * 0.45,
+          opacity: 0.95 - (i * (0.7 / 15)),
+          color: LUXURY_COLORS.success,
+        });
+      }
+      setRadarSweeps(successSweeps);
       
-      // Return to initial state after a delay
+      setRadarSignals(prev => prev.map(signal => ({
+        ...signal,
+        strength: signal.strength,
+        isVisible: signal.isVisible
+      })));
+      
       setTimeout(() => {
         setIsNearReader(false);
         setConnectionProgress(0);
         setConnectionResult(null);
-      }, 2000);
-    }
+      }, 3000);
   };
   
-  // Function to simulate a failed connection
   const simulateFailedConnection = () => {
-    if (isNearReader && connectionProgress >= 1) {
-      // Haptic feedback to indicate failure
+    console.log('Simulate failure clicked, progress:', connectionProgress);
+    if (isNearReader) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       
-      // Update the state
       setConnectionResult(false);
       
-      // Return to initial state after a delay
+      const errorSweeps: RadarSweep[] = [];
+      for (let i = 0; i < 15; i++) {
+        errorSweeps.push({
+          id: `radar-sweep-${i}`,
+          delay: i * (200 / 15),
+          width: CONTAINER_SIZE * 0.45,
+          opacity: 0.95 - (i * (0.7 / 15)),
+          color: LUXURY_COLORS.error,
+        });
+      }
+      setRadarSweeps(errorSweeps);
+      
+      setRadarSignals(prev => prev.map(signal => ({
+        ...signal,
+        strength: signal.strength,
+        isVisible: signal.isVisible
+      })));
+      
       setTimeout(() => {
         setIsNearReader(false);
         setConnectionProgress(0);
         setConnectionResult(null);
-      }, 2000);
+      }, 3000);
     }
   };
   
-  // Simulate NFC reader proximity detection (automatic every 15 seconds)
   useEffect(() => {
-    // Simulation: alternate between proximity and distance every 15 seconds
     const interval = setInterval(() => {
       if (!isNearReader) {
         toggleConnection();
       }
-    }, 15000); // Every 15 seconds for the demo
+    }, 15000);
     
     return () => {
       clearInterval(interval);
@@ -368,6 +402,22 @@ export default function ConnectionScreen() {
         ...signal,
         isVisible: true
       })));
+      
+      const goldenSweeps: RadarSweep[] = [];
+      for (let i = 0; i < 15; i++) {
+        goldenSweeps.push({
+          id: `radar-sweep-${i}`,
+          delay: i * (200 / 15),
+          width: CONTAINER_SIZE * 0.45,
+          opacity: 0.95 - (i * (0.7 / 15)),
+          color: LUXURY_COLORS.primary,
+        });
+      }
+      setRadarSweeps(goldenSweeps);
+      
+      requestAnimationFrame(() => {
+        setRadarSweeps([...goldenSweeps]);
+      });
     } else {
       proximityAnimation.value = withTiming(0, { duration: 500 });
       
@@ -376,25 +426,36 @@ export default function ConnectionScreen() {
         ...signal,
         isVisible: signal.isStatic
       })));
+      
+      setRadarSweeps(generateRadarSweeps(15));
     }
   }, [isNearReader]);
   
   // Effect to handle connection result
   useEffect(() => {
     if (connectionResult !== null) {
-      // Change radar color based on result
       const resultColor = connectionResult ? 
         LUXURY_COLORS.success : 
         LUXURY_COLORS.error;
       
-      // Update ray colors
       setRadarSweeps(prev => prev.map((sweep, index) => ({
         ...sweep,
         color: index < 3 ? resultColor : `rgba(${connectionResult ? '46, 139, 87' : '138, 48, 51'}, ${0.8 - (index * 0.05)})`
       })));
+      
+      setRadarCircles(generateRadarCircles(5));
+      
+    } else if (isNearReader) {
+      setRadarSweeps(prev => prev.map(sweep => ({
+        ...sweep,
+        color: LUXURY_COLORS.primary
+      })));
     } else if (!isNearReader) {
-      // Reset ray colors
+      // Reset ray colors - état normal (bleu)
       setRadarSweeps(generateRadarSweeps(15));
+      // Réinitialiser les cercles et signaux
+      setRadarCircles(generateRadarCircles(5));
+      setRadarSignals(generateRadarSignals(15));
     }
   }, [connectionResult, isNearReader]);
   
@@ -444,17 +505,41 @@ export default function ConnectionScreen() {
     };
   }, []);
   
-  // Style for connection overlay
-  const connectionOverlayStyle = useAnimatedStyle(() => {
-    const backgroundColor = interpolateColor(
-      proximityAnimation.value,
-      [0, 1],
-      ['rgba(0, 0, 0, 0)', 'rgba(212, 175, 55, 0.15)']
-    );
+  const containerStyle = useAnimatedStyle(() => {
+    let backgroundColor;
+    
+    if (connectionResult === true) {
+      backgroundColor = 'rgba(20, 60, 40, 1)';
+    } else if (connectionResult === false) {
+      backgroundColor = 'rgba(60, 20, 20, 1)';
+    } else {
+      backgroundColor = '#0A0A0A';
+    }
     
     return {
       backgroundColor,
-      opacity: proximityAnimation.value,
+    };
+  });
+  
+  // Style for connection overlay
+  const connectionOverlayStyle = useAnimatedStyle(() => {
+    let backgroundColor;
+    
+    if (connectionResult === true) {
+      backgroundColor = 'rgba(46, 139, 87, 0.5)';
+    } else if (connectionResult === false) {
+      backgroundColor = 'rgba(138, 48, 51, 0.5)';
+    } else {
+      backgroundColor = interpolateColor(
+        proximityAnimation.value,
+        [0, 1],
+        ['rgba(0, 0, 0, 0)', 'rgba(212, 175, 55, 0.15)']
+      );
+    }
+    
+    return {
+      backgroundColor,
+      opacity: connectionResult !== null ? 1 : proximityAnimation.value,
     };
   });
   
@@ -511,11 +596,9 @@ export default function ConnectionScreen() {
       let angleDiff = Math.abs(sweepAngle - signalAngle);
       if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
       
-      // Signal is visible if it's close to the sweep ray
       const isRecentlySwiped = angleDiff < 0.5;
       
-      // Signal color based on strength and proximity
-      const baseColor = signal.strength > 0.5 ? LUXURY_COLORS.secondary : LUXURY_COLORS.accent;
+      const baseColor = LUXURY_COLORS.primary;
       const activeColor = LUXURY_COLORS.primary;
       
       const backgroundColor = interpolateColor(
@@ -595,24 +678,14 @@ export default function ConnectionScreen() {
   // Generate styles for each sweep ray
   const getRadarSweepStyle = (sweep: RadarSweep) => {
     return useAnimatedStyle(() => {
-      // Calculate sweep angle with very small offset
       const sweepAngle = rotationAnimation.value - (sweep.delay / 8000) * (2 * Math.PI);
       
-      // Color and opacity variables based on proximity
-      const baseColor = sweep.color;
-      const activeColor = sweep.id.endsWith('0') || sweep.id.endsWith('1') ? 
-        LUXURY_COLORS.primary : baseColor;
+      const backgroundColor = sweep.color;
       
-      const backgroundColor = interpolateColor(
-        proximityAnimation.value,
-        [0, 1],
-        [baseColor, activeColor]
-      );
+      const shadowColor = isNearReader ? LUXURY_COLORS.primary : LUXURY_COLORS.sonar;
       
-      // Effet de fondu en queue plus subtil
       const tailEffect = 0.7 + (Math.sin(sweepAngle * 2) * 0.3);
       
-      // Opacité variable pour l'effet de balayage
       const opacity = sweep.opacity * (0.8 + (proximityAnimation.value * 0.2)) * tailEffect;
       
       return {
@@ -620,6 +693,7 @@ export default function ConnectionScreen() {
         width: sweep.width,
         height: 2,
         opacity,
+        shadowColor,
         transform: [
           { translateX: CENTER },
           { translateY: CENTER },
@@ -632,24 +706,24 @@ export default function ConnectionScreen() {
   
   // Style for radar center
   const radarCenterStyle = useAnimatedStyle(() => {
-    const baseColor = LUXURY_COLORS.primary;
-    const activeColor = isNearReader ? LUXURY_COLORS.primary : LUXURY_COLORS.secondary;
+    let backgroundColor;
     
-    const backgroundColor = interpolateColor(
-      proximityAnimation.value,
-      [0, 1],
-      [baseColor, activeColor]
-    );
+    if (connectionResult === true) {
+      backgroundColor = LUXURY_COLORS.success;
+    } else if (connectionResult === false) {
+      backgroundColor = LUXURY_COLORS.error;
+    } else if (isNearReader) {
+      backgroundColor = LUXURY_COLORS.primary;
+    } else {
+      backgroundColor = LUXURY_COLORS.sonar;
+    }
     
-    // Size of radar center
     const size = isNearReader ? 
-      20 : // Fixed size in connection mode
+      20 :
       15 * (1 + (energyAnimation.value * 0.2));
     
-    // Variable opacity
     const opacity = 0.8 + (proximityAnimation.value * 0.2);
     
-    // Pulsation effect
     const pulseEffect = 1 + (energyAnimation.value * 0.1);
     
     return {
@@ -667,7 +741,8 @@ export default function ConnectionScreen() {
   });
   
   return (
-    <SafeAreaView style={styles.container}>
+    <Animated.View style={[styles.container, containerStyle]}>
+    <SafeAreaView style={{flex: 1}}>
       <StatusBar style="light" />
       
       {/* Connection overlay */}
@@ -775,9 +850,9 @@ export default function ConnectionScreen() {
       <View style={styles.resultButtonsContainer}>
         <TouchableOpacity 
           style={[styles.resultButton, styles.successButton, 
-            (!isNearReader || connectionProgress < 1 || connectionResult !== null) && styles.disabledButton]} 
+            (!isNearReader || connectionResult !== null) && styles.disabledButton]} 
           onPress={simulateSuccessfulConnection}
-          disabled={!isNearReader || connectionProgress < 1 || connectionResult !== null}
+          disabled={!isNearReader || connectionResult !== null}
           activeOpacity={0.7}
         >
           <Ionicons name="checkmark-circle" size={32} color="white" />
@@ -785,22 +860,23 @@ export default function ConnectionScreen() {
         
         <TouchableOpacity 
           style={[styles.resultButton, styles.errorButton,
-            (!isNearReader || connectionProgress < 1 || connectionResult !== null) && styles.disabledButton]} 
+            (!isNearReader || connectionResult !== null) && styles.disabledButton]} 
           onPress={simulateFailedConnection}
-          disabled={!isNearReader || connectionProgress < 1 || connectionResult !== null}
+          disabled={!isNearReader || connectionResult !== null}
           activeOpacity={0.7}
         >
           <Ionicons name="close-circle" size={32} color="white" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#0A0A0A',
   },
   connectionOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -818,12 +894,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 10,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 18,
     color: 'rgba(255, 255, 255, 0.7)',
     marginBottom: 40,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
   animationWrapper: {
     width: CONTAINER_SIZE,
@@ -864,7 +947,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: 'rgba(15, 76, 129, 0.7)', // Night blue
     transformOrigin: 'left',
-    shadowColor: '#4DEEEA',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.7,
     shadowRadius: 5,
@@ -975,4 +1057,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-});
+})
+};
