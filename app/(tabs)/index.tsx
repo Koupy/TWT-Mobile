@@ -21,7 +21,7 @@ import * as Haptics from 'expo-haptics';
 // Import API services
 import { badgeService, activityService, authService } from '../../services/api';
 import formatDateToFrenchFormat from '../../utils/dateFormatter';
-import type { Badge as ApiBadge, Activity as ApiActivity } from '../../services/api';
+import type { Badge as ApiBadge, Activity as ApiActivity, UserResponse } from '../../services/api';
 
 // Badge interface
 interface Badge {
@@ -37,15 +37,23 @@ interface Badge {
 
 // Convert API badge to UI badge
 const convertApiBadgeToUiBadge = (apiBadge: ApiBadge): Badge => {
+  const name = apiBadge.name;
+  const type = 'Accès Principal';
+  const iconName: keyof typeof Ionicons.glyphMap = 'key-outline';
+  const color = apiBadge.color;
+  const location = 'Entrée A';
+  const description = `Badge d'accès ${apiBadge.status.toLowerCase()}`;
+  const lastUsed = apiBadge.updated_at;
+
   return {
     id: apiBadge.id,
-    name: apiBadge.name,
-    type: apiBadge.type || 'Bâtiment',
-    iconName: (apiBadge.iconName as keyof typeof Ionicons.glyphMap) || 'business',
-    color: apiBadge.color || '#0A84FF',
-    location: apiBadge.location,
-    description: apiBadge.description,
-    lastUsed: apiBadge.lastUsed
+    name: name,
+    type: type,
+    iconName: iconName,
+    color: color,
+    location: location,
+    description: description,
+    lastUsed: formatDateToFrenchFormat(lastUsed) // Assurez-vous que formatDateToFrenchFormat gère bien les dates
   };
 };
 
@@ -158,6 +166,7 @@ export default function HomeScreen() {
   const [activities, setActivities] = useState<Activity[]>(fakeActivities);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [userName, setUserName] = useState<string>('Utilisateur');
+  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // desc = newest first, asc = oldest first
   // Initialize scrollX with 0 to highlight first dot
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -232,8 +241,11 @@ export default function HomeScreen() {
       try {
         // Load user information
         const userInfo = await authService.getUserInfo();
-        if (userInfo && userInfo.first_name) {
-          setUserName(userInfo.first_name);
+        if (userInfo) {
+          setCurrentUser(userInfo);
+          if (userInfo.first_name) {
+            setUserName(userInfo.first_name);
+          }
         }
 
         // Load badges
@@ -473,14 +485,21 @@ export default function HomeScreen() {
               style={[styles.useBadgeButton, { backgroundColor: selectedBadge.color }]}
               onPress={async () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+                if (!selectedBadge || !currentUser) {
+                  console.error('Selected badge or current user is missing.');
+                  return;
+                }
                 
                 try {
                   // Create a new activity for badge usage
                   await activityService.createActivity({
-                    badgeId: selectedBadge.id,
+                    badge_id: selectedBadge.id,
+                    user_id: currentUser.id,
                     location: selectedBadge.location || 'Emplacement inconnu',
                     success: true,
-                    details: 'Badge utilisé via l\'application mobile'
+                    timestamp: new Date().toISOString(),
+                    details: "Badge utilisé via l'application mobile"
                   });
                   
                   // Refresh activities
