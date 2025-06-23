@@ -1,9 +1,5 @@
 import apiService from './apiService';
 import { API_CONFIG } from './config';
-import mockData, { getActivitiesByBadgeId, getActivitiesByUserId } from './mockData';
-
-// Flag to use mock data when API is unavailable
-const USE_MOCK_DATA = true; // Set to false in production
 
 /**
  * Types for activities
@@ -20,10 +16,11 @@ export interface Activity {
 }
 
 export interface CreateActivityRequest {
-  badgeId: string;
+  badge_id: string;
   location: string;
   success: boolean;
-  userId?: string;
+  timestamp: string;
+  user_id?: string;
   details?: string;
 }
 
@@ -32,29 +29,15 @@ export interface CreateActivityRequest {
  * Note: This service anticipates the future implementation of activity endpoints in the API
  */
 class ActivityService {
-  /**
-   * Get all activities
-   */
+  // Get all activities
   public async getAllActivities(): Promise<Activity[]> {
     try {
-      if (USE_MOCK_DATA) {
-        console.log('Using mock data for activities');
-        // Use mock activities
-        return mockData.activities.map(activity => this.transformActivity(activity));
-      } else {
-        // Try to use real API
-        try {
-          const response = await apiService.get<any[]>(API_CONFIG.ENDPOINTS.ACTIVITIES);
-          return this.transformActivities(response.data);
-        } catch (error) {
-          console.warn('Activities endpoint not available, using test data');
-          return this.getFakeActivities();
-        }
-      }
+      // Always use real API with actual integration
+      const response = await apiService.get<any[]>(API_CONFIG.ENDPOINTS.ACTIVITIES);
+      return this.transformActivities(response.data);
     } catch (error) {
-      console.error('Error retrieving activities:', error);
-      // Fallback to fake activities in case of error
-      return this.getFakeActivities();
+      console.error('Error retrieving activities from API:', error);
+      throw error;
     }
   }
 
@@ -63,25 +46,12 @@ class ActivityService {
    */
   public async getActivitiesByBadge(badgeId: string): Promise<Activity[]> {
     try {
-      if (USE_MOCK_DATA) {
-        console.log(`Using mock data for badge ${badgeId} activities`);
-        // Use mock activities filtered by badge ID
-        const mockBadgeActivities = getActivitiesByBadgeId(badgeId);
-        return mockBadgeActivities.map(activity => this.transformActivity(activity));
-      } else {
-        // Try to use real API
-        try {
-          const response = await apiService.get<any[]>(API_CONFIG.ENDPOINTS.ACTIVITIES_BY_BADGE(badgeId));
-          return this.transformActivities(response.data);
-        } catch (error) {
-          console.warn(`Badge activities endpoint not available, filtering test data for badge ${badgeId}`);
-          return this.getFakeActivities().filter(activity => activity.badgeId === badgeId);
-        }
-      }
+      // Always use real API
+      const response = await apiService.get<any[]>(API_CONFIG.ENDPOINTS.ACTIVITIES_BY_BADGE(badgeId));
+      return this.transformActivities(response.data);
     } catch (error) {
-      console.error(`Error retrieving activities for badge ${badgeId}:`, error);
-      // Fallback to fake activities in case of error
-      return this.getFakeActivities().filter(activity => activity.badgeId === badgeId);
+      console.error(`Error retrieving activities for badge ${badgeId} from API:`, error);
+      throw error; // Propagate error
     }
   }
 
@@ -90,25 +60,12 @@ class ActivityService {
    */
   public async getActivitiesByUser(userId: string): Promise<Activity[]> {
     try {
-      if (USE_MOCK_DATA) {
-        console.log(`Using mock data for user ${userId} activities`);
-        // Use mock activities filtered by user ID
-        const mockUserActivities = getActivitiesByUserId(userId);
-        return mockUserActivities.map(activity => this.transformActivity(activity));
-      } else {
-        // Try to use real API
-        try {
-          const response = await apiService.get<any[]>(API_CONFIG.ENDPOINTS.ACTIVITIES_BY_USER(userId));
-          return this.transformActivities(response.data);
-        } catch (error) {
-          console.warn(`User activities endpoint not available, filtering test data for user ${userId}`);
-          return this.getFakeActivities().filter(activity => activity.userId === userId);
-        }
-      }
+      // Always use real API
+      const response = await apiService.get<any[]>(API_CONFIG.ENDPOINTS.ACTIVITIES_BY_USER(userId));
+      return this.transformActivities(response.data);
     } catch (error) {
-      console.error(`Error retrieving activities for user ${userId}:`, error);
-      // Fallback to fake activities in case of error
-      return this.getFakeActivities().filter(activity => activity.userId === userId);
+      console.error(`Error retrieving activities for user ${userId} from API:`, error);
+      throw error; // Propagate error
     }
   }
 
@@ -117,62 +74,12 @@ class ActivityService {
    */
   public async createActivity(activity: CreateActivityRequest): Promise<Activity> {
     try {
-      if (USE_MOCK_DATA) {
-        console.log('Using mock data to simulate activity creation');
-        
-        // Get badge information to create a realistic activity
-        const badge = mockData.badges.find(b => b.id === activity.badgeId);
-        
-        // Create a new mock activity
-        const newActivity: Activity = {
-          id: (mockData.activities.length + 1).toString(),
-          badgeId: activity.badgeId,
-          badgeName: badge ? JSON.parse(badge.custom_data).type : 'Badge',
-          location: activity.location,
-          timestamp: new Date().toISOString(),
-          success: activity.success,
-          userId: activity.userId || '1', // Default to first user if not specified
-          details: activity.details
-        };
-        
-        // In a real implementation, we would add this to the database
-        // For testing, we just return the simulated activity
-        return newActivity;
-      } else {
-        // Try to use real API
-        try {
-          const response = await apiService.post<any>(API_CONFIG.ENDPOINTS.ACTIVITIES, activity);
-          return this.transformActivity(response.data);
-        } catch (error) {
-          console.warn('Activity creation endpoint not available, simulating creation');
-          // Simulate activity creation
-          const newActivity: Activity = {
-            id: Math.random().toString(36).substring(2, 11),
-            badgeId: activity.badgeId,
-            badgeName: 'Badge Simulé', // Fictitious name
-            location: activity.location,
-            timestamp: new Date().toISOString(),
-            success: activity.success,
-            userId: activity.userId,
-            details: activity.details
-          };
-          return newActivity;
-        }
-      }
+      // Always use real API
+      const response = await apiService.post<any>(API_CONFIG.ENDPOINTS.ACTIVITIES, activity);
+      return this.transformActivity(response.data);
     } catch (error) {
-      console.error('Error creating activity:', error);
-      // Even in case of error, return a simulated activity to allow the app to continue
-      const fallbackActivity: Activity = {
-        id: 'error-' + Math.random().toString(36).substring(2, 7),
-        badgeId: activity.badgeId,
-        badgeName: 'Badge (Error)',
-        location: activity.location,
-        timestamp: new Date().toISOString(),
-        success: activity.success,
-        userId: activity.userId,
-        details: 'Error creating activity: ' + (error instanceof Error ? error.message : 'Unknown error')
-      };
-      return fallbackActivity;
+      console.error('Error creating activity via API:', error);
+      throw error; // Propagate error
     }
   }
 

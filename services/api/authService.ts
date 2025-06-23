@@ -5,7 +5,7 @@ import { TOKEN_STORAGE } from './config';
 import mockData, { authenticateUser, getUserById } from './mockData';
 
 // Flag to use mock data when API is unavailable
-const USE_MOCK_DATA = true; // Set to false in production
+const USE_MOCK_DATA = false; // Set to false in production
 
 /**
  * Authentication types
