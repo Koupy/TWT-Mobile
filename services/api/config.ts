@@ -1,7 +1,10 @@
+// Production API base URL
+const API_BASE_URL = 'https://api.twallet.fr';
+
 // API Configuration
 export const API_CONFIG = {
   // API base URL
-  BASE_URL: 'http://10.0.2.2:8082/api',
+  BASE_URL: API_BASE_URL,
   
   // Request timeout in milliseconds
   TIMEOUT: 10000,
