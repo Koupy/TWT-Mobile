@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Dimensions, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, Dimensions, TouchableOpacity, TextInput } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
   useAnimatedStyle,
@@ -12,6 +12,7 @@ import Animated, {
   interpolateColor,
   Easing,
   cancelAnimation,
+  useAnimatedProps,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -217,6 +218,8 @@ type GridLine = {
   opacity: number;
 };
 
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
 export default function ConnectionScreen() {
   // States for radar elements
   const [radarCircles, setRadarCircles] = useState<RadarCircle[]>(generateRadarCircles(5));
@@ -225,8 +228,7 @@ export default function ConnectionScreen() {
   const [gridLines, setGridLines] = useState<GridLine[]>(generateGridLines());
   const [radarEnergy, setRadarEnergy] = useState(0.5);
   const [isNearReader, setIsNearReader] = useState(false);
-  const [connectionProgress, setConnectionProgress] = useState(0);
-  const connectionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const connectionProgress = useSharedValue(0);
   
   // Shared animations with initial values to avoid unnecessary calculations
   const timeValue = useSharedValue(0);
@@ -236,6 +238,17 @@ export default function ConnectionScreen() {
   
   // State to track connection result (null = in progress, true = success, false = failure)
   const [connectionResult, setConnectionResult] = useState<boolean | null>(null);
+
+  const animatedSubtitleProps = useAnimatedProps(() => {
+    const text = isNearReader
+      ? connectionResult === true
+        ? 'Badge recognized successfully'
+        : connectionResult === false
+        ? 'Badge not recognized or access denied'
+        : `Signal search: ${Math.round(connectionProgress.value * 100)}%`
+      : 'Place your phone near the reader';
+    return { text: text } as any;
+  }, [isNearReader, connectionResult]);
   
   // Function to simulate or cancel the current connection
   const toggleConnection = () => {
@@ -244,53 +257,29 @@ export default function ConnectionScreen() {
       setIsNearReader(true);
       setConnectionResult(null); // Reset the result
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-      // Start the connection process
-      setConnectionProgress(0);
-      if (connectionTimerRef.current) {
-        clearInterval(connectionTimerRef.current);
-      }
-      
-      connectionTimerRef.current = setInterval(() => {
-        setConnectionProgress(prev => {
-          const newProgress = prev + 0.05;
-          if (newProgress >= 0.95) {
-            if (connectionTimerRef.current) {
-              clearInterval(connectionTimerRef.current);
-              connectionTimerRef.current = null;
-            }
-            console.log('Connection progress complete, setting to 1');
-            
-            setTimeout(() => {
-              setConnectionProgress(1);
-              console.log('Progress forced to 1');
-            }, 100);
-            
-            return 1;
-          }
-          return newProgress;
-        });
-      }, 30);
+
+      // Start the connection process animation
+      connectionProgress.value = 0; // Reset
+      connectionProgress.value = withTiming(1, {
+        duration: 2500, // Animate over 2.5 seconds
+        easing: Easing.inOut(Easing.ease),
+      });
     } else {
       // Cancel the current connection
-      if (connectionTimerRef.current) {
-        clearInterval(connectionTimerRef.current);
-        connectionTimerRef.current = null;
-      }
-      
+      cancelAnimation(connectionProgress); // Stop the animation
+
       // Haptic feedback to indicate cancellation
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      
+
       // Reset the state
       setIsNearReader(false);
-      setConnectionProgress(0);
+      connectionProgress.value = 0;
       setConnectionResult(null);
     }
   };
   
   // Function to simulate a successful connection
   const simulateSuccessfulConnection = () => {
-    console.log('Simulate success clicked, progress:', connectionProgress);
     if (isNearReader) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
@@ -316,13 +305,13 @@ export default function ConnectionScreen() {
       
       setTimeout(() => {
         setIsNearReader(false);
-        setConnectionProgress(0);
+        connectionProgress.value = 0;
         setConnectionResult(null);
       }, 3000);
+    }
   };
   
   const simulateFailedConnection = () => {
-    console.log('Simulate failure clicked, progress:', connectionProgress);
     if (isNearReader) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       
@@ -348,7 +337,7 @@ export default function ConnectionScreen() {
       
       setTimeout(() => {
         setIsNearReader(false);
-        setConnectionProgress(0);
+        connectionProgress.value = 0;
         setConnectionResult(null);
       }, 3000);
     }
@@ -363,9 +352,6 @@ export default function ConnectionScreen() {
     
     return () => {
       clearInterval(interval);
-      if (connectionTimerRef.current) {
-        clearInterval(connectionTimerRef.current);
-      }
     };
   }, [isNearReader]);
   
@@ -757,13 +743,12 @@ export default function ConnectionScreen() {
             'Scanning...' : 
             'Bring your device closer'}
         </Text>
-        <Text style={styles.subtitle}>
-          {isNearReader
-            ? connectionResult === true ? 'Badge recognized successfully' :
-              connectionResult === false ? 'Badge not recognized or access denied' :
-              `Signal search: ${Math.round(connectionProgress * 100)}%`
-            : 'Place your phone near the reader'}
-        </Text>
+        <AnimatedTextInput
+          style={styles.subtitle}
+          editable={false}
+          value={'Place your phone near the reader'}
+          animatedProps={animatedSubtitleProps}
+        />
         
         {/* Quantum animation container */}
         <View style={styles.animationWrapper}>
@@ -1058,4 +1043,3 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 })
-};
