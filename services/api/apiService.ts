@@ -47,49 +47,80 @@ class ApiService {
   }
 
   /**
-   * Performs an HTTP request with error handling
+   * Performs an HTTP request with error handling, timeout, and fallback mode
    */
   private async request<T>(
-    endpoint: string,
     method: string,
+    endpoint: string,
     data?: any,
-    customHeaders?: HeadersInit
+    customHeaders?: Record<string, string>
   ): Promise<ApiResponse<T>> {
     try {
-      const url = `${API_CONFIG.BASE_URL}${endpoint}`;
-      const headers = customHeaders || await this.getAuthHeaders();
+      // Log pour débuggage
+      console.log(`[API] Début requête ${endpoint} ${method}`);
       
-      const config: RequestInit = {
+      // S'assurer qu'il y a un slash entre la base URL et l'endpoint
+      const url = `${API_CONFIG.BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+      console.log(`[API] URL complète: ${url} (${method})`);
+      
+      const headers = { ...await this.getAuthHeaders(), ...customHeaders };
+      
+      // Options avancées pour la requête fetch
+      const options: RequestInit = {
         method,
         headers,
-        ...(data && method !== 'GET' ? { body: JSON.stringify(data) } : {}),
+        mode: 'cors' as RequestMode,
+        cache: 'no-cache' as RequestCache,
+        credentials: 'same-origin' as RequestCredentials,
+        redirect: 'follow' as RequestRedirect,
+        referrerPolicy: 'no-referrer' as ReferrerPolicy,
+        ...(data && { body: JSON.stringify(data) })
       };
       
-      // Add a timeout to the request
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(new Error(`Request timed out after ${API_CONFIG.TIMEOUT}ms`));
-        }, API_CONFIG.TIMEOUT);
+      // Create timeout promise with longer timeout (15s)
+      const timeoutPromise = new Promise<Response>((_, reject) => {
+        setTimeout(() => reject({
+          message: 'Délai de connexion dépassé',
+          status: 408,
+          data: null
+        }), 15000); // 15 secondes au lieu de la config
       });
       
-      // Perform the request with a timeout
-      const response = await Promise.race([
-        fetch(url, config),
-        timeoutPromise
-      ]) as Response;
-      
-      // Check if the response is OK (status 2xx)
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+      // Race between fetch and timeout with better error handling
+      let response;
+      try {
+        response = await Promise.race([
+          fetch(url, options),
+          timeoutPromise
+        ]);
+        console.log(`[API] Réponse reçue pour ${endpoint}`);
+      } catch (error) {
+        console.error(`[API] ${endpoint} Error: ${method} [${error}]`);
         throw {
-          message: errorData.message || `Erreur ${response.status}: ${response.statusText}`,
-          status: response.status,
-          data: errorData
+          message: 'Network request failed',
+          status: 0,
+          data: error
         };
       }
       
-      // Parse the JSON response
-      const responseData = await response.json() as T;
+      // Parse response data
+      let responseData: T;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        responseData = await response.json();
+      } else {
+        responseData = await response.text() as unknown as T;
+      }
+      
+      // Handle error responses
+      if (!response.ok) {
+        throw {
+          message: this.getErrorMessage(response.status, responseData),
+          status: response.status,
+          data: responseData
+        };
+      }
       
       console.log(`[API] ${method} Response: ${url}`, {
         status: response.status,
@@ -125,28 +156,28 @@ class ApiService {
       url = `${endpoint}?${queryString}`;
     }
     
-    return this.request<T>(url, 'GET');
+    return this.request<T>('GET', url);
   }
 
   /**
    * Performs a POST request
    */
   public async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, 'POST', data);
+    return this.request<T>('POST', endpoint, data);
   }
 
   /**
    * Performs a PUT request
    */
   public async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, 'PUT', data);
+    return this.request<T>('PUT', endpoint, data);
   }
 
   /**
    * Performs a DELETE request
    */
   public async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, 'DELETE');
+    return this.request<T>('DELETE', endpoint);
   }
 
   /**
@@ -174,6 +205,37 @@ class ApiService {
     } catch (error) {
       console.error('Error removing tokens:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Maps HTTP status codes to user-friendly error messages
+   */
+  private getErrorMessage(status: number, data: any): string {
+    switch (status) {
+      case 400:
+        return 'Requête invalide';
+      case 401:
+        return 'Non autorisé - Veuillez vous reconnecter';
+      case 403:
+        return 'Accès refusé';
+      case 404:
+        return 'Ressource introuvable';
+      case 408:
+        return 'Délai de connexion dépassé';
+      case 500:
+        return 'Erreur serveur interne';
+      case 502:
+      case 503:
+      case 504:
+        return 'Service temporairement indisponible';
+      default:
+        // Try to extract message from response data if available
+        if (data && typeof data === 'object') {
+          if (data.message) return data.message;
+          if (data.error) return data.error;
+        }
+        return `Erreur (${status})`;
     }
   }
 }
