@@ -3,85 +3,196 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
-import 'react-native-reanimated';
+import { View, Text, StyleSheet } from 'react-native';
+import ErrorBoundary from '../components/ErrorBoundary';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { authService } from '../services/api';
+import { useColorScheme } from '../hooks/useColorScheme';
 import { AuthContextType, User } from '../types';
 
 // Prevent display before loading is complete.
-SplashScreen.preventAutoHideAsync();
+try {
+  SplashScreen.preventAutoHideAsync();
+} catch (e) {
+  console.log('Error preventing splash screen hide:', e);
+}
 
-// Authentication 
+// Restauration du contexte d'authentification avec des valeurs par défaut
 export const AuthContext = React.createContext<AuthContextType>({
   isAuthenticated: false,
-  setIsAuthenticated: (value: boolean) => {},
+  setIsAuthenticated: () => {},
+  user: undefined,
+  setUser: () => {},
 });
 
-function useProtectedRoute(isAuthenticated: boolean) {
-  const segments = useSegments();
-  const router = useRouter();
-
-  useEffect(() => {
-    // Wait for the application to be ready before navigating
-    if (!segments || segments.length <= 0) return;
-    
-    // Check if the first segment is 'auth' using a TypeScript-safe approach
-    const inAuthGroup = segments[0] ? segments[0].toString() === 'auth' : false;
-    
-    if (!isAuthenticated && !inAuthGroup) {
-      // Redirect to login if not authenticated and not in auth group
+// Fonction auxiliaire pour la redirection - pas un hook React
+function redirectToLogin(router: ReturnType<typeof useRouter>) {
+  console.log('[Navigation] Tentative de redirection vers login');
+  
+  setTimeout(() => {
+    try {
       router.replace('/auth/login');
-    } else if (isAuthenticated && inAuthGroup) {
-      // Redirect to connection tab if authenticated and in auth group
-      router.replace('/(tabs)/connection');
+    } catch (e) {
+      console.log('[Navigation] Erreur de redirection:', e);
     }
-  }, [isAuthenticated, segments, router]);
+  }, 500);
 }
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  // Définir l'état initial comme déconnecté pour éviter la connexion automatique
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | undefined>(undefined);
   const [appIsReady, setAppIsReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [startupComplete, setStartupComplete] = useState(false);
 
-  // Prepare the application and wait for everything to load
+  // Préparation améliorée de l'application
   useEffect(() => {
     async function prepare() {
       try {
-        // Check if the user is already authenticated
-        const isUserAuthenticated = await authService.isAuthenticated();
-        setIsAuthenticated(isUserAuthenticated);
+        // Délai un peu plus long pour s'assurer que tout est bien initialisé
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log('[Startup] Démarrage de l\'application');
         
-        // Wait for resources to load
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // S'assurer explicitement qu'on démarre déconnecté
+        setIsAuthenticated(false);
+        setUser(undefined);
+        
+        // Marquer le démarrage comme terminé
+        setStartupComplete(true);
       } catch (e) {
-        console.warn(e);
+        console.log('[Startup] Erreur:', e);
+        setError(String(e));
       } finally {
-        // Indicate that the application is ready
+        // Marquer l'application comme prête
         setAppIsReady(true);
-        // Hide the loading screen
-        await SplashScreen.hideAsync();
+        
+        // Cacher l'écran de démarrage avec un délai supplémentaire
+        try {
+          setTimeout(async () => {
+            await SplashScreen.hideAsync();
+            console.log('[Splash] Écran de démarrage masqué');
+          }, 500);
+        } catch (splashError) {
+          console.log('[Splash] Erreur:', splashError);
+        }
       }
     }
 
     prepare();
   }, []);
 
-  // Use route protection directly
-  useProtectedRoute(isAuthenticated);
+  // Gérer la redirection directement dans le composant RootLayout
+  const segments = useSegments();
+  const router = useRouter();
+  const [isNavigationReady, setIsNavigationReady] = useState(false);
+  
+  // Première étape : s'assurer que la navigation est prête
+  useEffect(() => {
+    // N'activer que si l'application est prête
+    if (appIsReady && startupComplete && segments.length >= 0) {
+      // Délai pour s'assurer que le Root Layout est monté
+      const timer = setTimeout(() => {
+        console.log('[Navigation] Navigation ready, segments:', segments);
+        setIsNavigationReady(true);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [appIsReady, startupComplete, segments]);
+  
+  // Deuxième étape : rediriger vers login si nécessaire
+  useEffect(() => {
+    if (isNavigationReady) {
+      console.log('[Layout] Démarrage terminé, protection des routes activée');
+      
+      // Vérifier si on est déjà dans le groupe d'authentification
+      const inAuthGroup = segments.length > 0 && String(segments[0]) === 'auth';
+      const inTabsGroup = segments.length > 0 && String(segments[0]) === '(tabs)';
+      
+      console.log('[Navigation] Auth status:', { isAuthenticated, inAuthGroup, inTabsGroup, segments });
+      
+      // Rediriger vers login uniquement si:
+      // 1. L'utilisateur n'est pas authentifié
+      // 2. ET n'est pas déjà dans le groupe auth
+      // 3. ET l'application est complètement prête
+      if (!isAuthenticated && !inAuthGroup && appIsReady && startupComplete) {
+        console.log('[Navigation] Redirection vers login (non authentifié)');
+        redirectToLogin(router);
+      } else if (isAuthenticated && inAuthGroup) {
+        // Si l'utilisateur est authentifié mais toujours sur la page login
+        console.log('[Navigation] Redirection vers tabs (déjà authentifié)');
+        router.replace('/(tabs)/connection');
+      } else {
+        console.log('[Navigation] Aucune redirection nécessaire');
+      }
+    }
+  }, [isNavigationReady, segments, router, isAuthenticated]);
 
+  // Écran de chargement pendant le démarrage
   if (!appIsReady) {
-    return <View style={{ flex: 1, backgroundColor: '#000' }} />;
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Chargement de l'application...</Text>
+      </View>
+    );
   }
 
+  // Show error screen if there was a startup error
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>Une erreur est survenue au démarrage</Text>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+  
+  // Version simplifiée mais avec contexte d'authentification
+  console.log('[Layout] Rendu avec contexte auth (mais sans vérification API)');
+
+  // Rendu avec contexte d'authentification rétabli
   return (
-    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, user, setUser }}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Slot />
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </AuthContext.Provider>
+    <ErrorBoundary>
+      <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, user, setUser }}>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Slot />
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </AuthContext.Provider>
+    </ErrorBoundary>
   );
 }
+
+// Styles for the layout
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
+    padding: 20,
+  },
+  errorTitle: {
+    color: '#FF3B30',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  errorText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+});

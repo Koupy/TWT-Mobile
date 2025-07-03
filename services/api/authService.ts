@@ -2,10 +2,6 @@ import apiService from './apiService';
 import { API_CONFIG } from './config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TOKEN_STORAGE } from './config';
-import mockData, { authenticateUser, getUserById } from './mockData';
-
-// Flag to use mock data when API is unavailable
-const USE_MOCK_DATA = false;
 
 /**
  * Authentication types
@@ -48,59 +44,24 @@ class AuthService {
    */
   public async login(username_or_email: string, password: string): Promise<UserResponse> {
     try {
-      if (USE_MOCK_DATA) {
-        console.log('Using mock data for login');
-        // Use mock authentication
-        const authResult = authenticateUser(username_or_email, password);
-        
-        if (!authResult) {
-          throw new Error('Invalid credentials');
-        }
-        
-        // Store authentication tokens
-        await apiService.setAuthTokens(
-          authResult.tokens.access_token,
-          authResult.tokens.refresh_token
-        );
-        
-        // Convert mock user to UserResponse format
-        const userResponse: UserResponse = {
-          id: authResult.user.id,
-          entity_id: authResult.user.entity_id,
-          username: authResult.user.email.split('@')[0], // Generate username from email
-          email: authResult.user.email,
-          first_name: authResult.user.first_name,
-          last_name: authResult.user.last_name,
-          phone: authResult.user.phone,
-          is_active: true,
-          created_at: authResult.user.created_at,
-          updated_at: authResult.user.updated_at
-        };
-        
-        // Store user information
-        await this.saveUserInfo(userResponse);
-        
-        return userResponse;
-      } else {
-        // Use real API
-        const loginData: LoginRequest = {
-          username_or_email,
-          password
-        };
-        
-        const response = await apiService.post<LoginResponse>(API_CONFIG.ENDPOINTS.LOGIN, loginData);
-        
-        // Store authentication tokens
-        await apiService.setAuthTokens(
-          response.data.access_token,
-          response.data.refresh_token
-        );
-        
-        // Store user information
-        await this.saveUserInfo(response.data.user);
-        
-        return response.data.user;
-      }
+      // Préparer les données de connexion
+      const loginData: LoginRequest = {
+        username_or_email,
+        password
+      };
+
+      const response = await apiService.post<LoginResponse>(API_CONFIG.ENDPOINTS.LOGIN, loginData);
+
+      // Store authentication tokens
+      await apiService.setAuthTokens(
+        response.data.access_token,
+        response.data.refresh_token
+      );
+
+      // Store user information
+      await this.saveUserInfo(response.data.user);
+
+      return response.data.user;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -114,7 +75,7 @@ class AuthService {
     try {
       // Remove authentication tokens
       await apiService.clearAuthTokens();
-      
+
       // Remove user information
       await AsyncStorage.removeItem('user_info');
     } catch (error) {
@@ -129,26 +90,26 @@ class AuthService {
   public async refreshToken(): Promise<string> {
     try {
       const refreshToken = await AsyncStorage.getItem(TOKEN_STORAGE.REFRESH_TOKEN);
-      
+
       if (!refreshToken) {
         throw new Error('No refresh token available');
       }
-      
+
       const refreshData: RefreshTokenRequest = {
         refresh_token: refreshToken
       };
-      
+
       const response = await apiService.post<LoginResponse>(
         API_CONFIG.ENDPOINTS.REFRESH_TOKEN,
         refreshData
       );
-      
+
       // Update authentication tokens
       await apiService.setAuthTokens(
         response.data.access_token,
         response.data.refresh_token
       );
-      
+
       return response.data.access_token;
     } catch (error) {
       console.error('Error refreshing token:', error);
@@ -187,36 +148,11 @@ class AuthService {
     try {
       // First try to get from AsyncStorage
       const userInfo = await AsyncStorage.getItem('user_info');
-      
+
       if (userInfo) {
         return JSON.parse(userInfo);
       }
-      
-      // If not in AsyncStorage and using mock data, return demo user
-      if (USE_MOCK_DATA) {
-        console.log('Using mock data for user info');
-        const demoUser = mockData.users[0];
-        
-        // Convert mock user to UserResponse format
-        const userResponse: UserResponse = {
-          id: demoUser.id,
-          entity_id: demoUser.entity_id,
-          username: demoUser.email.split('@')[0],
-          email: demoUser.email,
-          first_name: demoUser.first_name,
-          last_name: demoUser.last_name,
-          phone: demoUser.phone,
-          is_active: true,
-          created_at: demoUser.created_at,
-          updated_at: demoUser.updated_at
-        };
-        
-        // Store user information for future use
-        await this.saveUserInfo(userResponse);
-        
-        return userResponse;
-      }
-      
+
       return null;
     } catch (error) {
       console.error('Error retrieving user information:', error);

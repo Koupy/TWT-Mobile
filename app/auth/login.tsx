@@ -19,7 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../_layout';
 import { authService } from '../../services/api';
 
-// Toggle quick login button
+// Paramètres de développement
 const ENABLE_QUICK_LOGIN = true;
 
 export default function LoginScreen() {
@@ -46,6 +46,8 @@ export default function LoginScreen() {
   // Calculate logo size based on screen dimensions
   const logoSize = Math.min(width * 0.6, height * 0.25);
   
+
+
   const handleLogin = async () => {
     setError('');
     
@@ -55,27 +57,18 @@ export default function LoginScreen() {
     }
     
     try {
-      // Try to connect via the API
+      // Connexion via l'API
       await authService.login(email, password);
       
       if (authContext) {
         authContext.setIsAuthenticated(true);
       }
       
-      // Authentication successful - redirect to connection tab
+      console.log("[Login] Connexion réussie");
       router.replace('/(tabs)/connection');
     } catch (error) {
-      // Fallback for demo if API is not available
-      if (email === 'demo@twallet.com' && password === 'Azerty11') {
-        if (authContext) {
-          authContext.setIsAuthenticated(true);
-        }
-        
-        // Authentication successful - redirect to connection tab
-        router.replace('/(tabs)/connection');
-      } else {
-        setError('Incorrect email or password');
-      }
+      console.error("[Login] Erreur globale:", error);
+      setError('Une erreur est survenue lors de la connexion');
     }
   };
   
@@ -116,11 +109,9 @@ export default function LoginScreen() {
             {/* Logo */}
             <View style={[styles.logoContainer, isSmallHeight && { marginTop: 20, marginBottom: 20 }]}>
               <View style={[styles.logoWrapper, { padding: isSmallHeight ? 8 : 15 }]}>
-                <Image 
-                  source={require('../../assets/images/logo.png')} 
-                  style={[styles.logoImage, { width: logoSize, height: logoSize }]} 
-                  resizeMode="contain"
-                />
+                <View style={[styles.logoImage, { width: logoSize, height: logoSize, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: logoSize/2, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{color: '#0A84FF', fontSize: logoSize/3, fontWeight: 'bold'}}>T</Text>
+                </View>
               </View>
             </View>
           </View>

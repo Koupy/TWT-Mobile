@@ -19,28 +19,67 @@ import { User } from '../../types';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  // Récupération sécurisée du contexte avec vérification
   const authContext = React.useContext(AuthContext);
+  // Vérification que le contexte est bien initialisé
+  const isContextAvailable = authContext && typeof authContext === 'object';
+  // État local sécurisé
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load user information
+  // Load user information with safety checks
   useEffect(() => {
     const loadUserInfo = async () => {
       setIsLoading(true);
       try {
-        const userInfo = await authService.getUserInfo();
-        if (userInfo) {
-          setUser(userInfo);
+        // Vérifier si le contexte est disponible
+        if (!isContextAvailable) {
+          console.log('[Profil] Contexte auth non disponible, utilisation locale');
+          // Si user déjà en état local, on garde
+          if (!user) {
+            try {
+              // Tentative de récupération sans contexte
+              const userInfo = await authService.getUserInfo();
+              if (userInfo) {
+                setUser(userInfo);
+              }
+            } catch (userError) {
+              console.error('[Profil] Erreur getUserInfo:', userError);
+              setError('Impossible de récupérer vos informations');
+            }
+          }
+        } else {
+          // Utiliser le user du contexte s'il existe
+          if (authContext.user) {
+            setUser(authContext.user);
+          } else {
+            // Sinon, tenter un appel API
+            try {
+              const userInfo = await authService.getUserInfo();
+              if (userInfo) {
+                setUser(userInfo);
+                // Mettre à jour le contexte si possible
+                if (authContext.setUser) {
+                  authContext.setUser(userInfo);
+                }
+              }
+            } catch (error) {
+              console.error('[Profil] Erreur chargement info:', error);
+              setError('Impossible de charger vos informations');
+            }
+          }
         }
       } catch (error) {
-        console.error('Error loading user information:', error);
+        console.error('[Profil] Erreur générale:', error);
+        setError('Une erreur est survenue');
       } finally {
         setIsLoading(false);
       }
     };
 
     loadUserInfo();
-  }, []);
+  }, [isContextAvailable, authContext, user]);
 
   const handleLogout = async () => {
     try {
