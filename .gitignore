@@ -35,11 +35,63 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-app-example
+# Build directories
+android/app/build/
+android/build/
+android/.gradle/
+ios/build/
+ios/Pods/
 
-# other
+# Android specific
+android/local.properties
+android/captures/
+android/react-settings-plugin/
+
+# Generated files
+*.hprof
+*.ipa
+*.apk
+*.aab
+
+# EAS specific
+easConfig.json
+
+# Cache
+.eslintcache
+.babel.config.cache
+
+# Editor specific
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary directories
+tmp/
+temp/
+
+# Other project specific
 tsconfig.json
 assets/images/
 
 # API temporaire
 #/api/
+
+# Generated android files that change often and don't need to be versioned
+android/app/release
+android/app/debug
+
+# Specific React Native project files
+android/app/build.gradle.kts
+android/app/src/main/java/com/twallet/
+android/app/src/main/res/drawable/splashscreen.xml
+android/app/src/main/res/drawable/splashscreen_image.png
+android/app/src/main/res/mipmap-*/ic_launcher.png
+android/app/src/main/res/mipmap-*/ic_launcher_round.png
+assets/
+babel.config.js
+components/
+metro.config.js
+react-native.config.js
+types/image.d.ts
+eas.json

@@ -1,22 +1,50 @@
+// Crée un objet d'application Expo avec les configurations nécessaires
 module.exports = {
   expo: {
+    assetBundlePatterns: [
+      "**/*",
+      "./assets/fonts/*",
+      "./node_modules/react-native-vector-icons/Fonts/*"
+    ],
+    fonts: [
+      {
+        "asset": "./node_modules/react-native-vector-icons/Fonts/Ionicons.ttf"
+      },
+      {
+        "asset": "./node_modules/react-native-vector-icons/Fonts/AntDesign.ttf"
+      },
+      {
+        "asset": "./node_modules/react-native-vector-icons/Fonts/FontAwesome.ttf"
+      },
+      {
+        "asset": "./node_modules/react-native-vector-icons/Fonts/MaterialIcons.ttf"
+      },
+      {
+        "asset": "./node_modules/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf"
+      }
+    ],
     name: "t-wallet",
     slug: "t-wallet",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/images/icon.png",
     scheme: "myapp",
     userInterfaceStyle: "automatic",
-    newArchEnabled: true,
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      runtimeVersion: {
+        policy: "appVersion"
+      }
     },
     android: {
+      package: "com.twallet",
       adaptiveIcon: {
-        foregroundImage: "./assets/images/adaptive-icon.png",
-        backgroundColor: "#ffffff"
+        foregroundImage: "./assets/adaptive-icon.png",
+        backgroundColor: "#FFFFFF"
       },
-      package: "com.anonymous.twallet"
+      buildType: "apk",
+      jsEngine: "hermes",
+      targetSdkVersion: 34,
+      runtimeVersion: "1.0.0"
     },
     web: {
       bundler: "metro",
@@ -26,20 +54,21 @@ module.exports = {
     plugins: [
       "expo-router",
       [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
+        "expo-splash-screen"
       ]
     ],
     experiments: {
       typedRoutes: true
     },
     
+    updates: {
+      url: "https://u.expo.dev/6844d12b-864a-4ad4-aa01-50b54062c768"
+    },
+    
     extra: {
+      eas: {
+        "projectId": "6844d12b-864a-4ad4-aa01-50b54062c768"
+      },
       disableADB: true
     }
   }
