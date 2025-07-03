@@ -121,17 +121,17 @@ export default function ProfileScreen() {
             <View style={styles.avatar}>
               <Text style={styles.avatarInitials}>
                 {user ? 
-                  `${user.first_name?.charAt(0) || ''}${user.last_name?.charAt(0) || ''}` || 'DU' 
-                  : 'DU'}
+                  `${user.first_name?.charAt(0) || ''}${user.last_name?.charAt(0) || ''}` 
+                  : ''}
               </Text>
             </View>
           </View>
           <Text style={styles.userName}>
             {user ? 
-              `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Demo User' 
-              : 'Demo User'}
+              `${user.first_name || ''} ${user.last_name || ''}`.trim() 
+              : ''}
           </Text>
-          <Text style={styles.userEmail}>{user?.email || 'demo@twallet.com'}</Text>
+          <Text style={styles.userEmail}>{user?.email || ''}</Text>
           <Text style={styles.userRole}>Utilisateur Standard</Text>
         </View>
         
@@ -147,8 +147,8 @@ export default function ProfileScreen() {
                 <Text style={styles.cardLabel}>Nom complet</Text>
                 <Text style={styles.cardValue}>
                   {user ? 
-                    `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Demo User' 
-                    : 'Demo User'}
+                    `${user.first_name || ''} ${user.last_name || ''}`.trim() 
+                    : ''}
                 </Text>
               </View>
             </View>
@@ -161,7 +161,7 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.cardContent}>
                 <Text style={styles.cardLabel}>Email</Text>
-                <Text style={styles.cardValue}>{user?.email || 'demo@twallet.com'}</Text>
+                <Text style={styles.cardValue}>{user?.email || ''}</Text>
               </View>
             </View>
             
@@ -173,21 +173,12 @@ export default function ProfileScreen() {
               </View>
               <View style={styles.cardContent}>
                 <Text style={styles.cardLabel}>Téléphone</Text>
-                <Text style={styles.cardValue}>{user?.phone || '+33 6 12 34 56 78'}</Text>
+                <Text style={styles.cardValue}>{user?.phone || ''}</Text>
               </View>
             </View>
             
             <View style={styles.separator} />
             
-            <View style={styles.cardItem}>
-              <View style={styles.cardIconContainer}>
-                <Ionicons name="business-outline" size={20} color="#0A84FF" />
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardLabel}>Département</Text>
-                <Text style={styles.cardValue}>Marketing</Text>
-              </View>
-            </View>
           </View>
         </View>
         

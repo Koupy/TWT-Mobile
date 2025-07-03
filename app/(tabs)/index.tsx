@@ -81,91 +81,11 @@ const convertApiActivityToUiActivity = (apiActivity: ApiActivity): Activity => {
   };
 };
 
-// Fake badge data
-const fakeBadges: Badge[] = [
-  {
-    id: '1',
-    name: 'Badge Principal',
-    type: 'Bâtiment',
-    iconName: 'business',
-    color: '#0A84FF',
-    location: 'Immeuble Principal',
-    description: 'Badge d\'accès principal permettant d\'entrer dans le bâtiment par les entrées principales et secondaires.',
-    lastUsed: 'Aujourd\'hui à 09:32',
-  },
-  {
-    id: '2',
-    name: 'Badge Parking',
-    type: 'Véhicule',
-    iconName: 'car',
-    color: '#30D158',
-    location: 'Parking Souterrain',
-    description: 'Badge d\'accès au parking souterrain de l\'immeuble. Permet l\'entrée et la sortie des véhicules.',
-    lastUsed: 'Aujourd\'hui à 09:15',
-  },
-  {
-    id: '3',
-    name: 'Badge Bureau',
-    type: 'Salle',
-    iconName: 'desktop',
-    color: '#FF9F0A',
-    location: 'Bureau 42',
-    description: 'Badge d\'accès au bureau 42 situé au 4ème étage. Accès restreint aux membres de l\'équipe.',
-    lastUsed: 'Hier à 18:45',
-  },
-  {
-    id: '4',
-    name: 'Badge Cafétéria',
-    type: 'Zone',
-    iconName: 'cafe',
-    color: '#FF375F',
-    location: 'Cafétéria Principale',
-    description: 'Badge d\'accès à la cafétéria principale située au rez-de-chaussée. Accessible à tous les employés.',
-    lastUsed: 'Hier à 13:20',
-  },
-];
-
-// Fake activity data
-const fakeActivities: Activity[] = [
-  {
-    id: '1',
-    badgeId: '1',
-    badgeName: 'Badge Principal',
-    location: 'Entrée Principale',
-    timestamp: formatDateToFrenchFormat(new Date()),
-    success: true,
-  },
-  {
-    id: '2',
-    badgeId: '2',
-    badgeName: 'Badge Parking',
-    location: 'Barrière Entrée',
-    timestamp: formatDateToFrenchFormat(new Date(Date.now() - 15 * 60000)),
-    success: true,
-  },
-  {
-    id: '3',
-    badgeId: '3',
-    badgeName: 'Badge Bureau',
-    location: 'Bureau 42',
-    timestamp: formatDateToFrenchFormat(new Date(Date.now() - 24 * 60 * 60000)),
-    success: true,
-  },
-  {
-    id: '4',
-    badgeId: '1',
-    badgeName: 'Badge Principal',
-    location: 'Entrée Secondaire',
-    timestamp: formatDateToFrenchFormat(new Date(Date.now() - 25 * 60 * 60000)),
-    success: false,
-  },
-];
-
 export default function HomeScreen() {
-  const [badges, setBadges] = useState<Badge[]>(fakeBadges);
-  const [activities, setActivities] = useState<Activity[]>(fakeActivities);
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [userName, setUserName] = useState<string>('Utilisateur');
+  const [userName, setUserName] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<UserResponse | null>(null);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // desc = newest first, asc = oldest first
   // Initialize scrollX with 0 to highlight first dot
@@ -257,7 +177,8 @@ export default function HomeScreen() {
           }
         } catch (error) {
           console.warn('Error loading badges:', error);
-          // Use fake badges in case of error
+          // Garder le tableau vide en cas d'erreur
+          setBadges([]);
         }
 
         // Load activities
@@ -269,8 +190,8 @@ export default function HomeScreen() {
           }
         } catch (error) {
           console.warn('Error loading activities:', error);
-          // Use fake activities in case of error
-          setActivities(sortActivities(fakeActivities));
+          // Garder le tableau vide en cas d'erreur
+          setActivities([]);
         }
       } catch (error) {
         console.error('Error loading data:', error);
