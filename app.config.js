@@ -38,7 +38,7 @@ module.exports = {
     android: {
       package: "com.twallet",
       adaptiveIcon: {
-        foregroundImage: "./assets/adaptive-icon.png",
+        foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#FFFFFF"
       },
       buildType: "apk",

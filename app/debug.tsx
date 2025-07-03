@@ -13,7 +13,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { authService, badgeService, activityService } from '../services/api';
-import mockData from '../services/api/mockData';
 
 export default function DebugScreen() {
   const router = useRouter();
@@ -221,7 +220,7 @@ export default function DebugScreen() {
             <Text style={styles.mockDataTitle}>Données de Test</Text>
             <ScrollView style={styles.mockDataScroll}>
               <Text style={styles.mockDataText}>
-                {JSON.stringify(mockData, null, 2)}
+                Les données simulées ont été supprimées. L'application utilise désormais exclusivement l'API réelle.
               </Text>
             </ScrollView>
           </View>

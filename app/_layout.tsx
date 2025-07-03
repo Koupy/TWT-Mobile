@@ -50,8 +50,8 @@ export default function RootLayout() {
   useEffect(() => {
     async function prepare() {
       try {
-        // Délai un peu plus long pour s'assurer que tout est bien initialisé
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Réduire le délai de démarrage au minimum nécessaire
+        await new Promise(resolve => setTimeout(resolve, 100));
         console.log('[Startup] Démarrage de l\'application');
         
         // S'assurer explicitement qu'on démarre déconnecté
@@ -91,13 +91,9 @@ export default function RootLayout() {
   useEffect(() => {
     // N'activer que si l'application est prête
     if (appIsReady && startupComplete && segments.length >= 0) {
-      // Délai pour s'assurer que le Root Layout est monté
-      const timer = setTimeout(() => {
-        console.log('[Navigation] Navigation ready, segments:', segments);
-        setIsNavigationReady(true);
-      }, 1000);
-      
-      return () => clearTimeout(timer);
+      // Activer la navigation immédiatement
+      console.log('[Navigation] Navigation ready, segments:', segments);
+      setIsNavigationReady(true);
     }
   }, [appIsReady, startupComplete, segments]);
   
@@ -106,23 +102,23 @@ export default function RootLayout() {
     if (isNavigationReady) {
       console.log('[Layout] Démarrage terminé, protection des routes activée');
       
-      // Vérifier si on est déjà dans le groupe d'authentification
-      const inAuthGroup = segments.length > 0 && String(segments[0]) === 'auth';
-      const inTabsGroup = segments.length > 0 && String(segments[0]) === '(tabs)';
+      // Vérifier le chemin de navigation actuel
+      const currentSegment = segments.length > 0 ? String(segments[0]) : '';
+      const inAuthGroup = currentSegment === 'auth';
+      const inTabsGroup = currentSegment === '(tabs)';
+      const isInitialRoute = currentSegment === '';
       
-      console.log('[Navigation] Auth status:', { isAuthenticated, inAuthGroup, inTabsGroup, segments });
+      console.log('[Navigation] Auth status:', { isAuthenticated, inAuthGroup, inTabsGroup, isInitialRoute, segments });
       
-      // Rediriger vers login uniquement si:
-      // 1. L'utilisateur n'est pas authentifié
-      // 2. ET n'est pas déjà dans le groupe auth
-      // 3. ET l'application est complètement prête
-      if (!isAuthenticated && !inAuthGroup && appIsReady && startupComplete) {
-        console.log('[Navigation] Redirection vers login (non authentifié)');
-        redirectToLogin(router);
+      if (isInitialRoute && !isAuthenticated) {
+        console.log('[Navigation] Route initiale -> login');
+        router.replace('/auth/login');
       } else if (isAuthenticated && inAuthGroup) {
-        // Si l'utilisateur est authentifié mais toujours sur la page login
         console.log('[Navigation] Redirection vers tabs (déjà authentifié)');
         router.replace('/(tabs)/connection');
+      } else if (!isAuthenticated && inTabsGroup) {
+        console.log('[Navigation] Protection des routes -> login');
+        router.replace('/auth/login');
       } else {
         console.log('[Navigation] Aucune redirection nécessaire');
       }
