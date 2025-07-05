@@ -4,7 +4,75 @@ import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet } from 'react-native';
-import ErrorBoundary from '../components/ErrorBoundary';
+// Inline ErrorBoundary component instead of importing it
+import { Component, ErrorInfo, ReactNode } from 'react';
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+      errorInfo: null
+    };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error, errorInfo: null };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    this.setState({
+      error,
+      errorInfo
+    });
+    console.error('ErrorBoundary caught an error', error, errorInfo);
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        <View style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#000000',
+          padding: 20,
+        }}>
+          <Text style={{
+            color: '#FF3B30',
+            fontSize: 20,
+            fontWeight: 'bold',
+            marginBottom: 10,
+          }}>Une erreur est survenue</Text>
+          <Text style={{
+            color: '#FFFFFF',
+            fontSize: 16,
+            textAlign: 'center',
+            marginBottom: 20,
+          }}>{this.state.error?.toString()}</Text>
+          <Text style={{
+            color: 'rgba(255, 255, 255, 0.6)',
+            fontSize: 14,
+            textAlign: 'center',
+          }}>Veuillez redémarrer l'application</Text>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 import { useColorScheme } from '../hooks/useColorScheme';
 import { AuthContextType, User } from '../types';

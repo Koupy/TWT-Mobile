@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.twallet",
@@ -18,17 +18,25 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.twallet",
       "permissions": [
         "android.permission.NFC"
       ],
-      "buildType": "apk",
-      "jsEngine": "hermes",
-      "targetSdkVersion": 34,
-      "runtimeVersion": "1.0.0"
+      "runtimeVersion": "1.0.0",
+      "splash": {
+        "image": "./assets/images/icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#000000"
+      },
+      "intentFilters": [
+        {
+          "action": "android.nfc.action.NDEF_DISCOVERED",
+          "category": ["android.intent.category.DEFAULT"]
+        }
+      ],
+      "jsEngine": "hermes"
     },
     "web": {
       "bundler": "metro",
@@ -37,42 +45,22 @@
     },
     "plugins": [
       "expo-router",
-      ["expo-splash-screen"],
+      "expo-splash-screen",
       "react-native-nfc-manager"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "updates": {
-      "url": "https://u.expo.dev/6844d12b-864a-4ad4-aa01-50b54062c768"
+      "enabled": false
     },
     "extra": {
       "eas": {
         "projectId": "6844d12b-864a-4ad4-aa01-50b54062c768"
-      },
-      "disableADB": true
+      }
     },
     "assetBundlePatterns": [
-      "**/*",
-      "./assets/fonts/*",
-      "./node_modules/react-native-vector-icons/Fonts/*"
-    ],
-    "fonts": [
-      {
-        "asset": "./node_modules/react-native-vector-icons/Fonts/Ionicons.ttf"
-      },
-      {
-        "asset": "./node_modules/react-native-vector-icons/Fonts/AntDesign.ttf"
-      },
-      {
-        "asset": "./node_modules/react-native-vector-icons/Fonts/FontAwesome.ttf"
-      },
-      {
-        "asset": "./node_modules/react-native-vector-icons/Fonts/MaterialIcons.ttf"
-      },
-      {
-        "asset": "./node_modules/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf"
-      }
+      "**/*"
     ]
   }
 }
