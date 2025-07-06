@@ -44,7 +44,7 @@ if (getRNMinorVersion() >= 75) {
   }
 }
 
-rootProject.name = 'twallet'
+rootProject.name = 't-wallet'
 
 dependencyResolutionManagement {
   versionCatalogs {

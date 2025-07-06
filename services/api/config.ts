@@ -27,7 +27,11 @@ export const API_CONFIG = {
     // Users
     USERS: '/users',
     USER_BY_ID: (id: string) => `/users/${id}`,
-    USERS_BY_ENTITY: (entityId: string) => `/users/by-entity/${entityId}`,
+    USERS_BY_ENTITY: (entityId: string) => `/users/entity/${entityId}`,
+    
+    // Association NFC (nouveau)
+    NFC_ASSOCIATION: '/users/nfc-association',
+    NFC_STATUS: '/users/nfc-status',
     
     // Entities
     ENTITIES: '/entities',
@@ -36,6 +40,7 @@ export const API_CONFIG = {
     // Badges
     BADGES: '/badges',
     BADGE_BY_ID: (id: string) => `/badges/${id}`,
+    BADGES_BY_NFC: (nfcId: string) => `/badges/by-nfc/${nfcId}`,
     
     // Activities (to be implemented in the API)
     ACTIVITIES: '/activities',

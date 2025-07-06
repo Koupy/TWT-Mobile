@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Dimensions, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Dimensions, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
   useAnimatedStyle,
@@ -15,6 +15,8 @@ import Animated, {
   useAnimatedProps,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import nfcService from '../../services/nfcService';
+import badgeService from '../../services/api/badgeService';
 import * as Haptics from 'expo-haptics';
 
 // Colors for the animation
@@ -236,19 +238,26 @@ export default function ConnectionScreen() {
   const energyAnimation = useSharedValue(0.5); // Start at midpoint to avoid abrupt transitions
   const proximityAnimation = useSharedValue(0);
   
+  // État pour suivre si la fonctionnalité NFC est disponible
+  const [isNfcAvailable, setIsNfcAvailable] = useState<boolean | null>(null);
+  const [isNfcEnabled, setIsNfcEnabled] = useState<boolean>(false);
+  const [isEmittingBadges, setIsEmittingBadges] = useState<boolean>(false);
+  
   // State to track connection result (null = in progress, true = success, false = failure)
   const [connectionResult, setConnectionResult] = useState<boolean | null>(null);
 
   const animatedSubtitleProps = useAnimatedProps(() => {
     const text = isNearReader
       ? connectionResult === true
-        ? 'Badge recognized successfully'
+        ? isEmittingBadges
+          ? 'Transferring all badges via NFC...'
+          : 'Badge recognized successfully'
         : connectionResult === false
         ? 'Badge not recognized or access denied'
         : `Signal search: ${Math.round(connectionProgress.value * 100)}%`
       : 'Place your phone near the reader';
     return { text: text } as any;
-  }, [isNearReader, connectionResult]);
+  }, [isNearReader, connectionResult, isEmittingBadges]);
   
   // Function to simulate or cancel the current connection
   const toggleConnection = () => {
@@ -278,6 +287,88 @@ export default function ConnectionScreen() {
     }
   };
   
+  // Vérifier la disponibilité du NFC au chargement du composant
+  useEffect(() => {
+    const checkNfcAvailability = async () => {
+      try {
+        const result = await nfcService.checkAvailability();
+        setIsNfcAvailable(result.available);
+        
+        if (result.available) {
+          await nfcService.initialize();
+          setIsNfcEnabled(true);
+        }
+      } catch (error) {
+        console.error('Error checking NFC availability:', error);
+        setIsNfcAvailable(false);
+      }
+    };
+    
+    checkNfcAvailability();
+    
+    return () => {
+      // Nettoyer les ressources NFC lors du démontage du composant
+      if (isNfcEnabled) {
+        nfcService.cleanup();
+      }
+    };
+  }, []);
+
+  // Fonction pour partager tous les badges via NFC
+  const shareAllBadgesViaNFC = async () => {
+    if (!isNfcEnabled || isEmittingBadges) return;
+    
+    try {
+      Alert.alert('Démarrage NFC', 'Initialisation du partage de badges...');
+      setIsEmittingBadges(true);
+      
+      const badges = await badgeService.getAllBadges();
+      
+      if (!badges || badges.length === 0) {
+        Alert.alert('Aucun badge', 'Vous n\'avez pas de badge à partager.');
+        setIsEmittingBadges(false);
+        return;
+      }
+      
+      Alert.alert('Badges trouvés', `${badges.length} badge(s) prêts à être partagés via l'ID NFC de votre téléphone.`);
+      console.log(`Prêt à partager ${badges.length} badges via l'ID NFC du téléphone`);
+      console.log('IDs des badges: ', badges.map(b => b.id).join(', '));
+
+      // Activer le mode HCE (Host Card Emulation) pour simuler un tag NFC
+      // La badgeuse va lire l'ID NFC physique du téléphone
+      const nfcResult = await nfcService.emitBadges(badges);
+      
+      // Récupérer l'ID NFC du téléphone (via la méthode getNfcId de nfcService)
+      const nfcId = await nfcService.getNfcId();
+      if (nfcId) {
+        console.log(`ID NFC du téléphone récupéré: ${nfcId}`);
+        
+        // Associer l'ID NFC aux badges de l'utilisateur via le backend
+        try {
+          const nfcAssociationService = await import('../../services/api/nfcAssociationService').then(m => m.default);
+          await nfcAssociationService.associateNfcWithUser(nfcId);
+          console.log(`ID NFC ${nfcId} associé avec succès aux badges de l'utilisateur`);
+        } catch (associationError) {
+          console.warn(`Impossible d'associer l'ID NFC au backend:`, associationError);
+          // On continue malgré l'erreur car le partage NFC peut fonctionner sans l'association backend
+        }
+      } else {
+        console.warn("Impossible de récupérer l'ID NFC du téléphone");
+      }
+      
+      // Feedback à l'utilisateur
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Succès', 'Votre téléphone est prêt à être scanné par la badgeuse. Approchez-le du lecteur.');
+    } catch (error) {
+      console.error('Erreur lors du partage NFC:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      Alert.alert('Erreur', `Une erreur est survenue lors du partage des badges: ${errorMessage}`);
+    } finally {
+      setIsEmittingBadges(false);
+    }
+  };
+
   // Function to simulate a successful connection
   const simulateSuccessfulConnection = () => {
     if (isNearReader) {
@@ -302,6 +393,11 @@ export default function ConnectionScreen() {
         strength: signal.strength,
         isVisible: signal.isVisible
       })));
+      
+      // Si NFC est disponible, partager automatiquement tous les badges
+      if (isNfcAvailable && isNfcEnabled) {
+        shareAllBadgesViaNFC();
+      }
       
       setTimeout(() => {
         setIsNearReader(false);
@@ -738,7 +834,7 @@ export default function ConnectionScreen() {
         {/* Title and subtitle */}
         <Text style={styles.title}>
           {isNearReader ? 
-            connectionResult === true ? 'Access granted' :
+            connectionResult === true ? (isEmittingBadges ? 'Transferring badges...' : 'Access granted') :
             connectionResult === false ? 'Access denied' :
             'Scanning...' : 
             'Bring your device closer'}
@@ -749,6 +845,9 @@ export default function ConnectionScreen() {
           value={'Place your phone near the reader'}
           animatedProps={animatedSubtitleProps}
         />
+        {isNfcAvailable === false && (
+          <Text style={styles.errorMessage}>NFC is not available on this device</Text>
+        )}
         
         {/* Quantum animation container */}
         <View style={styles.animationWrapper}>
@@ -859,6 +958,13 @@ export default function ConnectionScreen() {
 }
 
 const styles = StyleSheet.create({
+  errorMessage: {
+    color: 'rgba(255, 70, 70, 0.8)',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 20,
+    fontWeight: '500',
+  },
   container: {
     flex: 1,
     backgroundColor: '#0A0A0A',

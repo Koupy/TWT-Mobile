@@ -1,12 +1,75 @@
 import NfcManager, { NfcTech, Ndef, NfcEvents } from 'react-native-nfc-manager';
 import { Platform } from 'react-native';
 
+// Type pour représenter un badge à partager via NFC
+export interface NfcShareableBadge {
+  id: string;
+  status: string;
+  expiration_date: string | null;
+  timestamp?: string;
+  [key: string]: any; // Pour les propriétés additionnelles
+}
 
 class NfcService {
   private static instance: NfcService;
   private nfcManagerIsInitialized: boolean = false;
+  private lastNfcId: string | null = null;
   
   private constructor() {}
+  
+  /**
+   * Récupère l'ID NFC de l'appareil s'il a été précédemment stocké
+   * @returns L'ID NFC de l'appareil ou null s'il n'est pas disponible
+   */
+  /**
+   * Génère un ID NFC virtuel unique basé sur le nom d'utilisateur
+   * @param username Nom d'utilisateur pour lequel générer l'ID NFC
+   * @returns ID NFC virtuel unique pour cet utilisateur
+   */
+  generateVirtualNfcId(username: string): string {
+    // Utiliser une fonction de hachage simple pour générer un ID basé sur le nom d'utilisateur
+    // Format: PREFIX_USERNAME_XXXXXXXX (où X est un caractère hexadécimal)
+    const prefix = 'VIRTUAL_NFC';
+    
+    // Générer une partie aléatoire unique liée au username
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+      hash = ((hash << 5) - hash) + username.charCodeAt(i);
+      hash = hash & hash; // Convertir en entier 32 bits
+    }
+    
+    // Convertir le hash en valeur hexadécimale positive de 8 caractères
+    const hexHash = Math.abs(hash).toString(16).padStart(8, '0').toUpperCase();
+    
+    // Créer l'ID virtuel
+    const virtualId = `${prefix}_${username}_${hexHash}`;
+    
+    console.log(`ID NFC virtuel généré pour ${username}: ${virtualId}`);
+    return virtualId;
+  }
+  
+  /**
+   * Récupère l'ID NFC virtuel associé au compte utilisateur actuel
+   * @param username Le nom d'utilisateur connecté
+   * @returns L'ID NFC virtuel unique pour cet utilisateur
+   */
+  async getNfcId(username?: string): Promise<string | null> {
+    // Si un nom d'utilisateur est fourni, générer un ID NFC virtuel pour cet utilisateur
+    if (username) {
+      const virtualId = this.generateVirtualNfcId(username);
+      this.lastNfcId = virtualId;
+      return virtualId;
+    }
+    
+    // Si pas de nom d'utilisateur mais ID en cache, le retourner
+    if (this.lastNfcId) {
+      return this.lastNfcId;
+    }
+    
+    // Si pas d'utilisateur connecté ni d'ID en cache, impossible de générer un ID
+    console.warn("Impossible de générer un ID NFC virtuel: aucun nom d'utilisateur fourni");
+    return null;
+  }
   
   private isProblematicDevice(brand: string, model: string): boolean {
     const problematicDevices = [
@@ -70,8 +133,17 @@ class NfcService {
   }
   
   async emitBadge(badge: any) {
+    return await this.emitBadges([badge]);
+  }
+  
+  /**
+   * Émet plusieurs badges via NFC en une seule opération
+   * @param badges Tableau de badges à émettre
+   * @returns true si l'opération est réussie
+   */
+  async emitBadges(badges: NfcShareableBadge[]) {
     try {
-      console.log('Préparation à l\'émission badge NFC...');
+      console.log(`Préparation à l'émission NFC de ${badges.length} badge(s)...`);
       
       // Démarrer NFC s'il n'est pas déjà démarré
       if (!this.nfcManagerIsInitialized) {
@@ -91,30 +163,59 @@ class NfcService {
         if (!enabled) {
           throw new Error('Le NFC est désactivé. Veuillez l\'activer dans les paramètres');
         }
+        
+        // Essayer de récupérer l'ID NFC de l'appareil
+        try {
+          const tag = await NfcManager.getTag();
+          if (tag && tag.id) {
+            // Convertir en format hexadécimal si nécessaire
+            if (Array.isArray(tag.id)) {
+              this.lastNfcId = Array.from(tag.id as number[])
+                .map(byte => ('0' + (byte & 0xFF).toString(16)).slice(-2))
+                .join('').toUpperCase();
+            } else {
+              this.lastNfcId = String(tag.id).toUpperCase();
+            }
+            console.log(`ID NFC du téléphone récupéré: ${this.lastNfcId}`);
+          }
+        } catch (idError) {
+          console.warn("Impossible de récupérer l'ID NFC de l'appareil:", idError);
+        }
       }
-
-      // Attendre que le NFC Adapter soit prêt
-      await NfcManager.requestTechnology(NfcTech.Ndef);
-      console.log('Technologie NFC NDEF requise avec succès');
-
-      // Format des données en JSON string
-      const badgeData = JSON.stringify(badge);
-      console.log('Données du badge formatées pour NFC:', badgeData);
       
-      // Créer le message NDEF avec les données du badge
-      const bytes = Ndef.encodeMessage([
-        Ndef.textRecord(badgeData),
-      ]);
+      console.log('Badges à partager:', badges.map(b => b.id).join(', '));
       
-      if (bytes) {
-        await NfcManager.ndefHandler.writeNdefMessage(bytes);
-        console.log('Message NDEF écrit avec succès');
+      // Approche plus simple : configurer l'appareil en mode "Card Emulation"
+      // La badgeuse semble lire uniquement l'ID du tag NFC
+      console.log(`⚠️ MODIFICATION DE L'APPROCHE : Utilisation de l'ID du téléphone comme identifiant NFC`);
+      console.log(`⚠️ En mode lecture simple, la badgeuse voit uniquement l'ID de votre appareil`);
+      console.log(`⚠️ Nous continuons de l'activer pour que la badgeuse détecte la présence de votre téléphone`);
+      
+      // Mettre en mode "reader mode" pour que le téléphone soit détectable
+      try {
+        // Nous utilisons une approche plus simple pour la compatibilité
+        await NfcManager.registerTagEvent();
+        
+        console.log(`⚠️ Téléphone prêt à être détecté par la badgeuse`);
+        
+        // Générer un hash des IDs des badges pour la console
+        const badgeIds = badges.map(b => b.id).join('_');
+        console.log(`⚠️ Hash des badges partagés: ${badgeIds}`);
+        
+        // Attendre quelques secondes pour laisser la badgeuse lire le tag
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Désactiver le mode tag
+        await NfcManager.unregisterTagEvent();
+        
+        console.log('Partage NFC terminé avec succès');
         return true;
-      } else {
-        throw new Error('Erreur lors de l\'encodage du message NDEF');
+      } catch (tagError) {
+        console.error('Erreur lors de l\'activation du mode tag:', tagError);
+        throw tagError;
       }
     } catch (error: any) {
-      console.error('Erreur lors de l\'émission du badge via NFC', error);
+      console.error('Erreur lors de l\'émission des badges via NFC', error);
       throw error;
     } finally {
       // Toujours nettoyer après l'opération NFC
