@@ -4,6 +4,8 @@ import { Slot, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, StyleSheet } from 'react-native';
+import LogViewer from '../components/LogViewer';
+import logger from '../utils/logger';
 // Inline ErrorBoundary component instead of importing it
 import { Component, ErrorInfo, ReactNode } from 'react';
 
@@ -120,7 +122,25 @@ export default function RootLayout() {
       try {
         // Réduire le délai de démarrage au minimum nécessaire
         await new Promise(resolve => setTimeout(resolve, 100));
-        console.log('[Startup] Démarrage de l\'application');
+        
+        // Configurer le logger
+        logger.configure({
+          enableConsoleOutput: true,
+          maxHistorySize: 500
+        });
+        
+        // Logs de test pour la console Metro
+        console.log('======= TEST LOGS DIRECTS =======');
+        console.log('Test log direct 1');
+        console.log('Test log direct 2');
+        console.log('================================');
+        
+        // Logs via notre logger
+        logger.info('APP', 'Application démarrée', { version: '1.0.0' });
+        logger.debug('APP', 'Mode développement activé');
+        logger.warn('APP', 'Test warn message');
+        logger.error('APP', 'Test error message');
+        logger.info('APP', 'Ces logs devraient apparaître dans la console Metro');
         
         // S'assurer explicitement qu'on démarre déconnecté
         setIsAuthenticated(false);
@@ -129,7 +149,7 @@ export default function RootLayout() {
         // Marquer le démarrage comme terminé
         setStartupComplete(true);
       } catch (e) {
-        console.log('[Startup] Erreur:', e);
+        logger.error('Startup', 'Erreur:', e);
         setError(String(e));
       } finally {
         // Marquer l'application comme prête
@@ -139,10 +159,10 @@ export default function RootLayout() {
         try {
           setTimeout(async () => {
             await SplashScreen.hideAsync();
-            console.log('[Splash] Écran de démarrage masqué');
+            logger.info('Splash', 'Écran de démarrage masqué');
           }, 500);
         } catch (splashError) {
-          console.log('[Splash] Erreur:', splashError);
+          logger.error('Splash', 'Erreur:', splashError);
         }
       }
     }
@@ -160,7 +180,7 @@ export default function RootLayout() {
     // N'activer que si l'application est prête
     if (appIsReady && startupComplete && segments.length >= 0) {
       // Activer la navigation immédiatement
-      console.log('[Navigation] Navigation ready, segments:', segments);
+      logger.info('Navigation', 'Navigation ready, segments:', segments);
       setIsNavigationReady(true);
     }
   }, [appIsReady, startupComplete, segments]);
@@ -168,7 +188,7 @@ export default function RootLayout() {
   // Deuxième étape : rediriger vers login si nécessaire
   useEffect(() => {
     if (isNavigationReady) {
-      console.log('[Layout] Démarrage terminé, protection des routes activée');
+      logger.info('Layout', 'Démarrage terminé, protection des routes activée');
       
       // Vérifier le chemin de navigation actuel
       const currentSegment = segments.length > 0 ? String(segments[0]) : '';
@@ -176,19 +196,19 @@ export default function RootLayout() {
       const inTabsGroup = currentSegment === '(tabs)';
       const isInitialRoute = currentSegment === '';
       
-      console.log('[Navigation] Auth status:', { isAuthenticated, inAuthGroup, inTabsGroup, isInitialRoute, segments });
+      logger.debug('Navigation', 'Auth status:', { isAuthenticated, inAuthGroup, inTabsGroup, isInitialRoute, segments });
       
       if (isInitialRoute && !isAuthenticated) {
-        console.log('[Navigation] Route initiale -> login');
+        logger.info('Navigation', 'Route initiale -> login');
         router.replace('/auth/login');
       } else if (isAuthenticated && inAuthGroup) {
-        console.log('[Navigation] Redirection vers tabs (déjà authentifié)');
+        logger.info('Navigation', 'Redirection vers tabs (déjà authentifié)');
         router.replace('/(tabs)/connection');
       } else if (!isAuthenticated && inTabsGroup) {
-        console.log('[Navigation] Protection des routes -> login');
+        logger.info('Navigation', 'Protection des routes -> login');
         router.replace('/auth/login');
       } else {
-        console.log('[Navigation] Aucune redirection nécessaire');
+        logger.info('Navigation', 'Aucune redirection nécessaire');
       }
     }
   }, [isNavigationReady, segments, router, isAuthenticated]);
@@ -213,7 +233,7 @@ export default function RootLayout() {
   }
   
   // Version simplifiée mais avec contexte d'authentification
-  console.log('[Layout] Rendu avec contexte auth (mais sans vérification API)');
+  logger.info('Layout', 'Rendu avec contexte auth (mais sans vérification API)');
 
   // Rendu avec contexte d'authentification rétabli
   return (
@@ -222,6 +242,7 @@ export default function RootLayout() {
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <Slot />
           <StatusBar style="auto" />
+          {__DEV__ && <LogViewer initialVisible={false} />}
         </ThemeProvider>
       </AuthContext.Provider>
     </ErrorBoundary>
