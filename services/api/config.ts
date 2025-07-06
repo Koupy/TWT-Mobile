@@ -1,4 +1,5 @@
 // API Base URL 
+// Ne pas ajouter de slash final ni le préfixe /api car ceux-ci seront ajoutés par les endpoints
 const API_BASE_URL = 'https://api.twallet.fr';
 
 // API Configuration
@@ -21,31 +22,31 @@ export const API_CONFIG = {
   // API Endpoints
   ENDPOINTS: {
     // Authentication
-    LOGIN: '/auth/login',
-    REFRESH_TOKEN: '/auth/refresh',
+    LOGIN: '/api/auth/login',
+    REFRESH_TOKEN: '/api/auth/refresh',
     
     // Users
-    USERS: '/users',
-    USER_BY_ID: (id: string) => `/users/${id}`,
-    USERS_BY_ENTITY: (entityId: string) => `/users/entity/${entityId}`,
+    USERS: '/api/users',
+    USER_BY_ID: (id: string) => `/api/users/${id}`,
+    USERS_BY_ENTITY: (entityId: string) => `/api/users/entity/${entityId}`,
     
-    // Association NFC (nouveau)
-    NFC_ASSOCIATION: '/users/nfc-association',
-    NFC_STATUS: '/users/nfc-status',
+    // Association NFC
+    NFC_ASSOCIATION: '/api/users/nfc-association',
+    NFC_STATUS: '/api/users/nfc-status',
     
     // Entities
-    ENTITIES: '/entities',
-    ENTITY_BY_ID: (id: string) => `/entities/${id}`,
+    ENTITIES: '/api/entities',
+    ENTITY_BY_ID: (id: string) => `/api/entities/${id}`,
     
     // Badges
-    BADGES: '/badges',
-    BADGE_BY_ID: (id: string) => `/badges/${id}`,
-    BADGES_BY_NFC: (nfcId: string) => `/badges/by-nfc/${nfcId}`,
+    BADGES: '/api/badges',
+    BADGE_BY_ID: (id: string) => `/api/badges/${id}`,
+    BADGES_BY_NFC: (nfcId: string) => `/api/badges/by-nfc/${nfcId}`,
     
-    // Activities (to be implemented in the API)
-    ACTIVITIES: '/activities',
-    ACTIVITIES_BY_BADGE: (badgeId: string) => `/activities/badge/${badgeId}`,
-    ACTIVITIES_BY_USER: (userId: string) => `/activities/user/${userId}`,
+    // Activities
+    ACTIVITIES: '/api/activities',
+    ACTIVITIES_BY_BADGE: (badgeId: string) => `/api/activities/badge/${badgeId}`,
+    ACTIVITIES_BY_USER: (userId: string) => `/api/activities/user/${userId}`,
   },
 };
 

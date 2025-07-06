@@ -14,6 +14,7 @@ import Animated, {
 
 import NfcManager, { NfcTech, Ndef, NfcEvents } from 'react-native-nfc-manager';
 import { badgeService } from '../../services/api';
+import accessVerificationService from '../../services/accessVerificationService';
 interface Badge {
   id: string;
   status: string;
@@ -409,6 +410,95 @@ export default function NfcScreen() {
     }
   };
 
+  /**
+   * Vérifie l'accès NFC à une porte/badgeuse spécifique
+   * @param readerId Identifiant de la badgeuse/porte (par défaut: MAIN_DOOR)
+   */
+  const handleNfcAccess = async (readerId: string = 'MAIN_DOOR') => {
+    try {
+      setIsScanning(true);
+      setShowSuccess(false);
+      setErrorMessage(null);
+      setNfcStatus('Vérification de l\'accès...');
+      
+      // Animation pendant le scan
+      pulseAnim.value = withRepeat(
+        withTiming(1.5, { duration: 1000, easing: Easing.out(Easing.ease) }),
+        -1,
+        true
+      );
+      
+      console.log(`Vérification d'accès pour la badgeuse: ${readerId}`);
+      
+      // Tenter la vérification d'accès
+      const accessResult = await accessVerificationService.verifyAccess(readerId);
+      
+      // Arrêter l'animation de pulsation
+      pulseAnim.value = 1;
+      
+      console.log('Résultat de la vérification d\'accès:', accessResult);
+      
+      if (accessResult.granted) {
+        // Animation de succès
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        successScale.value = withSequence(
+          withTiming(1.2, { duration: 300 }),
+          withTiming(1, { duration: 200 })
+        );
+        successOpacity.value = withSequence(
+          withTiming(1, { duration: 300 }),
+          withTiming(1, { duration: 1500 }),
+          withTiming(0, { duration: 500 })
+        );
+        
+        setNfcStatus('Accès autorisé');
+        setShowSuccess(true);
+        
+        // Enregistrer l'activité
+        if (accessResult.badgeId) {
+          await accessVerificationService.logAccessAttempt(
+            accessResult.badgeId,
+            readerId,
+            true,
+            "Accès vérifié via application mobile"
+          );
+        }
+        
+        // Masquer l'animation de succès après quelques secondes
+        setTimeout(() => {
+          setShowSuccess(false);
+          setNfcStatus('NFC prêt');
+          setIsScanning(false);
+        }, 2000);
+      } else {
+        // Feedback d'échec
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setNfcStatus('Accès refusé');
+        setErrorMessage(accessResult.message);
+        
+        // Enregistrer la tentative échouée
+        await accessVerificationService.logAccessAttempt(
+          undefined,
+          readerId,
+          false,
+          accessResult.message
+        );
+        
+        setTimeout(() => {
+          setNfcStatus('NFC prêt');
+          setErrorMessage(null);
+          setIsScanning(false);
+        }, 3000);
+      }
+    } catch (error: any) {
+      console.error('Erreur lors de la vérification d\'accès:', error);
+      setNfcStatus('Erreur NFC');
+      setErrorMessage(error.message || 'Erreur lors de la vérification d\'accès');
+      setIsScanning(false);
+      pulseAnim.value = 1;
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -464,6 +554,22 @@ export default function NfcScreen() {
             <Text style={styles.buttonText}>
               {isLoading ? 'Chargement...' : isScanning ? 'Partage en cours...' : 'Partager le badge'}
             </Text>
+          </TouchableOpacity>
+          
+          {/* Bouton pour tester la vérification d'accès */}
+          <TouchableOpacity
+            style={[
+              styles.accessButton,
+              (!isNfcSupported || !isNfcEnabled || isLoading) && styles.disabledButton,
+              isScanning && styles.activeButton,
+            ]}
+            onPress={() => handleNfcAccess('MAIN_DOOR')}
+            disabled={!isNfcSupported || !isNfcEnabled || isScanning || isLoading}
+          >
+            <Text style={styles.buttonText}>
+              {isScanning ? 'Vérification en cours...' : 'Vérifier l\'accès'}
+            </Text>
+            <FontAwesome name="unlock-alt" size={18} color="#FFFFFF" style={styles.buttonIcon} />
           </TouchableOpacity>
         </>
       ) : (
@@ -585,7 +691,22 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#30D158',
-    marginBottom: 20,
+    color: '#FFFFFF',
+    marginTop: 20,
+    marginBottom: 40,
+  },
+  accessButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#30D158',
+    paddingVertical: 15,
+    paddingHorizontal: 25,
+    borderRadius: 10,
+    marginTop: 15,
+    width: '80%',
+  },
+  buttonIcon: {
+    marginLeft: 10,
   },
 });

@@ -90,6 +90,23 @@ class BadgeService {
       throw error;
     }
   }
+
+  /**
+   * Récupère les badges associés à un ID NFC
+   * @param nfcId L'identifiant NFC à utiliser
+   * @returns Liste des badges associés à cet ID NFC
+   */
+  public async getBadgesByNfcId(nfcId: string): Promise<Badge[]> {
+    try {
+      console.log(`Récupération des badges pour l'ID NFC: ${nfcId}`);
+      const response = await apiService.get<Badge[]>(API_CONFIG.ENDPOINTS.BADGES_BY_NFC(nfcId));
+      console.log(`${response.data.length} badges trouvés pour l'ID NFC ${nfcId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des badges par NFC ID ${nfcId}:`, error);
+      throw error;
+    }
+  }
 }
 
 // Export a single instance of the badge service

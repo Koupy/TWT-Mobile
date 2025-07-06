@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG, TOKEN_STORAGE } from './config';
+import logger from '../../utils/logger';
 
 /**
  * Types for API requests and responses
@@ -27,7 +28,7 @@ class ApiService {
     try {
       return await AsyncStorage.getItem(TOKEN_STORAGE.ACCESS_TOKEN);
     } catch (error) {
-      console.error('Error retrieving access token:', error);
+      logger.error('API', 'Error retrieving access token:', error);
       return null;
     }
   }
@@ -57,11 +58,26 @@ class ApiService {
   ): Promise<ApiResponse<T>> {
     try {
       // Log pour débuggage
-      console.log(`[API] Début requête ${endpoint} ${method}`);
+      logger.info('API', `Début requête ${endpoint} ${method}`);
       
-      // S'assurer qu'il y a un slash entre la base URL et l'endpoint
-      const url = `${API_CONFIG.BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
-      console.log(`[API] URL complète: ${url} (${method})`);
+      // Construire l'URL finale en s'assurant que le préfixe /api est présent
+      const baseUrl = API_CONFIG.BASE_URL.endsWith('/') 
+        ? API_CONFIG.BASE_URL.slice(0, -1)
+        : API_CONFIG.BASE_URL;
+      
+      let finalEndpoint = endpoint;
+      // Normaliser l'endpoint en retirant le slash initial pour éviter les doublons
+      if (finalEndpoint.startsWith('/')) {
+        finalEndpoint = finalEndpoint.substring(1);
+      }
+      // S'assurer que l'endpoint commence par 'api/'
+      if (!finalEndpoint.startsWith('api/')) {
+        finalEndpoint = `api/${finalEndpoint}`;
+      }
+      
+      const url = `${baseUrl}/${finalEndpoint}`;
+      logger.info('API', `URL complète: ${url} (${method})`);
+      logger.debug('API', `Détails: BASE_URL=${API_CONFIG.BASE_URL}, endpoint=${endpoint}`);
       
       const headers = { ...await this.getAuthHeaders(), ...customHeaders };
       
@@ -93,9 +109,9 @@ class ApiService {
           fetch(url, options),
           timeoutPromise
         ]);
-        console.log(`[API] Réponse reçue pour ${endpoint}`);
+        logger.info('API', `Réponse reçue pour ${endpoint}`);
       } catch (error) {
-        console.error(`[API] ${endpoint} Error: ${method} [${error}]`);
+        logger.error('API', `${endpoint} Error: ${method} [${error}]`);
         throw {
           message: 'Network request failed',
           status: 0,
@@ -122,7 +138,7 @@ class ApiService {
         };
       }
       
-      console.log(`[API] ${method} Response: ${url}`, {
+      logger.info('API', `${method} Response: ${url}`, {
         status: response.status,
         dataPreview: JSON.stringify(responseData).substring(0, 100) + '...'
       });
@@ -133,7 +149,7 @@ class ApiService {
         headers: Object.fromEntries(response.headers.entries())
       };
     } catch (error) {
-      console.log(`[API] ${method} Error: ${endpoint}`, error);
+      logger.error('API', `${method} Error: ${endpoint}`, error);
       if (error instanceof Error) {
         throw {
           message: error.message,
@@ -188,7 +204,7 @@ class ApiService {
       await AsyncStorage.setItem(TOKEN_STORAGE.ACCESS_TOKEN, accessToken);
       await AsyncStorage.setItem(TOKEN_STORAGE.REFRESH_TOKEN, refreshToken);
     } catch (error) {
-      console.error('Error storing tokens:', error);
+      logger.error('API', 'Error storing tokens:', error);
       throw error;
     }
   }
@@ -203,7 +219,7 @@ class ApiService {
         TOKEN_STORAGE.REFRESH_TOKEN
       ]);
     } catch (error) {
-      console.error('Error removing tokens:', error);
+      logger.error('API', 'Error clearing tokens:', error);
       throw error;
     }
   }

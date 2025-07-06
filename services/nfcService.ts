@@ -1,5 +1,6 @@
 import NfcManager, { NfcTech, Ndef, NfcEvents } from 'react-native-nfc-manager';
 import { Platform } from 'react-native';
+import logger from '../utils/logger';
 
 // Type pour représenter un badge à partager via NFC
 export interface NfcShareableBadge {
@@ -44,7 +45,7 @@ class NfcService {
     // Créer l'ID virtuel
     const virtualId = `${prefix}_${username}_${hexHash}`;
     
-    console.log(`ID NFC virtuel généré pour ${username}: ${virtualId}`);
+    logger.info('NFC', `ID NFC virtuel généré pour ${username}: ${virtualId}`);
     return virtualId;
   }
   
@@ -256,6 +257,33 @@ class NfcService {
       await NfcManager.unregisterTagEvent().catch(() => {});
     } catch (error) {
       console.error('Erreur lors du nettoyage NFC', error);
+    }
+  }
+
+  /**
+   * Scanne un badge NFC et récupère les badges associés
+   * @returns Les badges associés à l'ID NFC scanné
+   */
+  async scanAndGetBadges() {
+    try {
+      // Utiliser l'ID NFC du téléphone ou générer un ID virtuel si nécessaire
+      const nfcId = this.lastNfcId || await this.getNfcId();
+      
+      if (!nfcId) {
+        throw new Error("Aucun ID NFC disponible");
+      }
+      
+      console.log(`Scan NFC réussi, ID obtenu: ${nfcId}`);
+      
+      // Récupérer les badges associés à cet ID NFC
+      const badgeService = (await import('./api/badgeService')).badgeService;
+      const badges = await badgeService.getBadgesByNfcId(nfcId);
+      
+      console.log(`${badges.length} badges récupérés pour l'ID NFC ${nfcId}`);
+      return badges;
+    } catch (error) {
+      console.error("Erreur lors du scan et récupération des badges:", error);
+      throw error;
     }
   }
 }
